@@ -1,6 +1,6 @@
 
 
-# projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
+projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
 
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
 yeastPath <- "/data/Protein/Yeast"
@@ -66,27 +66,40 @@ list_nb <- summary(factor(freqPep[peptides[,Sequence, by = parentIndex]]))
 list_nb
 
 freqPep[peptides["1234"][,Sequence]]==1
-test <- data.table(data.frame(freqPep), keep.rownames=TRUE)
-setkey(test, rn)
-test[as.character(peptides[as.character(5)][,Sequence])]
-truc <- NROW(test[as.character(peptides[as.character(5)][,Sequence])][freqPep==1])
+freqPepDT <- data.table(data.frame(freqPep), keep.rownames=TRUE)
+setkey(freqPepDT, rn)
+
+# I seemed to assume there would be at least one unique peptide per protein. I was wrong ^_^
+# I even have cases where I don't have any peptide at all
 for(i in 1:NROW(proteins)){
   print (i)
   proteins[as.character(i), nbUniqPep := summary(factor(freqPep[peptides[as.character(i)][,Sequence]]))]
 }
+# This version is better, it really counts the number of unique peptides
 for(i in 1:NROW(proteins)){
   print (i)
-  proteins[as.character(i), nbUniqPep := NROW(test[as.character(peptides[as.character(5)][,Sequence])][freqPep==1])]
+  proteins[as.character(i), nbUniqPep := NROW(freqPepDT[as.character(peptides[as.character(i)][,Sequence])][freqPep==1])]
 }
+
+proteins[, nbPep := 0L]
 for(i in 1:NROW(proteins)){
   print (i)
   proteins[as.character(i), nbPep := NROW(peptides[as.character(i)])]
+}
+
+# Patch for the case of 0 peptide in one protein (typically peptides to heavy or too light)
+proteins1 <- proteins[nbPep == 1]
+for(i in 1:NROW(proteins1)){
+  if(NROW(freqPepDT[as.character(peptides[proteins1[i][,parentIndex]][,Sequence])][freqPep==1][!is.na(freqPep)])==0){
+    proteins[proteins1[i][,parentIndex], nbUniqPep := 0L]
+    proteins[proteins1[i][,parentIndex], nbPep := 0L]
+  }
 }
 
 NROW(proteins[nbUniqPep>=1])
 table(proteins[, nbUniqPep])
 table(proteins[, nbPep])
 
-test <- peptides[proteins[nbPep==1, parentIndex]]
+test <- freqPep[peptides[proteins[nbUniqPep==0, parentIndex]][,Sequence]]
 sequences[test[is.na(Probability),parentIndex]]
 
