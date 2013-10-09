@@ -20,6 +20,7 @@ sequences[, index := 1:NROW(sequences)]
 list_index <- sequences[Type=="PROTEIN", index]
 list_index[NROW(list_index)+1] <- NROW(sequences)+1
 # This for will link each peptide to its "parent" protein
+# It takes time but it is necessary to speed up the computing afterwards
 for (i in 1:(NROW(list_index)-1)){
   print(i)
   sequences[list_index[i]:(list_index[i+1]-1), parentIndex := as.character(i)]
@@ -30,76 +31,53 @@ setkey(sequences, parentIndex)
 proteins <- sequences[Type=="PROTEIN"]
 peptides <- sequences[Type=="PEPTIDE"]
 
+# To remove the last character (a ':'), useless and interfering with ELUDE
+# as.character is needed because strings are automatically converted to factors, and nchar does not do the conversion itself
+peptides[, Sequence := substr(Sequence, 1, nchar(as.character(Sequence))-1)]
+
 setkey(proteins, parentIndex)
 setkey(peptides, parentIndex)
 
-# Studying the length of the protein is not interesting
-proteins[, length := nchar(as.character(Sequence))]
-
-ggplot(proteins, aes(length)) + geom_histogram()
-proteins[length < 100, length_class := 1]
-proteins[length >= 100 & length < 400, length_class := 2]
-proteins[length >= 400 & length < 1600, length_class := 3]
-proteins[length >= 1600 & length < 6400, length_class := 4]
-table(proteins[, length_class])
-
-
-
-nbPepPerProt <- summary(peptides[, factor(parentIndex)], maxsum = 7000)
-test <- as.data.frame(nbPepPerProt)
-ggplot(test, aes(nbPepPerProt))+geom_histogram()
-
-# At the global level, we count the occurences of each peptide
-# Purpose : identifying unique peptides
-# On Yeast they are most of the time unique though. No idea what will happen on human yet.
-setkey(peptides, Sequence)
-freqPep <- summary(peptides[, factor(Sequence)], maxsum = 250000)
-setkey(peptides, parentIndex)
-setkey(proteins, parentIndex)
-
-# Function does not work, grrr
-myFunction <- function(parentIndex,...){
-  return(summary(factor(freqPep[peptides[parentIndex][,Sequence]])))
-}
-proteins[, nbUniqPep := summary(factor(freqPep[peptides[parentIndex][,Sequence]])), allow.cartesian = TRUE]
-list_nb <- summary(factor(freqPep[peptides[,Sequence, by = parentIndex]]))
-list_nb
-
-freqPep[peptides["1234"][,Sequence]]==1
-freqPepDT <- data.table(data.frame(freqPep), keep.rownames=TRUE)
-setkey(freqPepDT, rn)
 
 # I seemed to assume there would be at least one unique peptide per protein. I was wrong ^_^
 # I even have cases where I don't have any peptide at all
+# It's too slow anyway
 for(i in 1:NROW(proteins)){
   print (i)
   proteins[as.character(i), nbUniqPep := summary(factor(freqPep[peptides[as.character(i)][,Sequence]]))]
 }
+
+# We build 2 inside databases
+# One counts the number of peptides per protein
+# The other counts the number of proteins per protein
+# The point ? Not losing proteins with no peptide
+# At the end we add the information in the protein DB
+fooDT <- peptides[, list(nbPep=.N),keyby=parentIndex][proteins[, list(nbProt=.N), keyby=parentIndex]]
+fooDT[is.na(nbPep), nbPep := 0L]
+fooDT[, nbProt := NULL]
+table(fooDT[,nbPep])
+proteins <- proteins[fooDT]
+
+# At the global level, we count the occurences of each peptide
+# Purpose : identifying unique peptides
+# On Yeast they are most of the time unique though. No idea what will happen on human yet.
+freqPep <- summary(peptides[, factor(Sequence)], maxsum = 250000)
+
 # This version is better, it really counts the number of unique peptides
-for(i in 1:NROW(proteins)){
-  print (i)
-  proteins[as.character(i), nbUniqPep := NROW(freqPepDT[as.character(peptides[as.character(i)][,Sequence])][freqPep==1])]
-}
+freqPepDT <- data.table(data.frame(freqPep), keep.rownames=TRUE)
+setkey(freqPepDT, rn)
+setkey(peptides, Sequence)
+# We add the information of peptide frequency in the peptides DB
+peptides <- peptides[freqPepDT]
 
-proteins[, nbPep := 0L]
-for(i in 1:NROW(proteins)){
-  print (i)
-  proteins[as.character(i), nbPep := NROW(peptides[as.character(i)])]
-}
+# We repeat the same framework but with different conditions
 
-# Patch for the case of 0 peptide in one protein (typically peptides to heavy or too light)
-proteins1 <- proteins[nbPep == 1]
-for(i in 1:NROW(proteins1)){
-  if(NROW(freqPepDT[as.character(peptides[proteins1[i][,parentIndex]][,Sequence])][freqPep==1][!is.na(freqPep)])==0){
-    proteins[proteins1[i][,parentIndex], nbUniqPep := 0L]
-    proteins[proteins1[i][,parentIndex], nbPep := 0L]
-  }
-}
+fooDT <- peptides[freqPep==1, list(nbUniqPep=.N),keyby=parentIndex][proteins[, list(nbProt=.N), keyby=parentIndex]]
+fooDT[is.na(nbUniqPep), nbUniqPep := 0L]
+fooDT[, nbProt := NULL]
+table(fooDT[,nbUniqPep])
+proteins <- proteins[fooDT]
 
-NROW(proteins[nbUniqPep>=1])
-table(proteins[, nbUniqPep])
-table(proteins[, nbPep])
 
-test <- freqPep[peptides[proteins[nbUniqPep==0, parentIndex]][,Sequence]]
-sequences[test[is.na(Probability),parentIndex]]
+
 
