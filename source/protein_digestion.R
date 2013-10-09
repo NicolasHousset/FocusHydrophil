@@ -5,6 +5,10 @@ projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
 yeastPath <- "/data/Protein/Yeast"
 
+myFunction <- function(projectPath, peptidesPath...){
+  
+  return(0)
+}
 sequences <- data.table(read.table(file = paste0(projectPath, yeastPath, "/Yeast_01TS.txt"),
                        sep = "", col.names=c("Type","Sequence","Probability"),
                        fill = TRUE
