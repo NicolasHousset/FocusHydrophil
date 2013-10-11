@@ -3,7 +3,7 @@
 projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
 
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
-proteinsPath <- "/data/Protein/Yeast/Yeast_01TS.txt"
+yeastPath <- "/data/Protein/Yeast/Yeast_01TS.txt"
 
 test <- myFunction("/mnt/compomics/Nicolas/R_Projects/FocusHydrophil","/data/Protein/Yeast/Yeast_01TS.txt")
 test2 <- myFunction("/mnt/compomics/Nicolas/R_Projects/FocusHydrophil","/data/Protein/Yeast/Yeast_OneMiss.txt")
@@ -71,22 +71,8 @@ myFunction <- function(projectPath, proteinsPath,...){
   return(proteins)
 }
 
-# Compute retention times for all potential peptides, otherwise a pain to integrate into peptides DB
-eludeDT <- freqPepDT[,rn]
-write.table(eludeDT, file=paste0(projectPath, "/data/DeNovoDigest.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
 
-fooDT <- peptides[freqPep==1 & Predicted_RT <= 0.5, list(nbHyd050=.N),keyby=parentIndex][proteins[, list(nbProt=.N), keyby=parentIndex]]
-fooDT[is.na(nbHyd050), nbHyd050 := 0L]
-fooDT[, nbProt := NULL]
-table(fooDT[,nbHyd050])
-proteins <- proteins[fooDT]
 
-NROW(proteins[nbHyd050>2])
 
-fooDT <- peptides[freqPep==1 & Predicted_RT <= 0.25, list(nbHyd025=.N),keyby=parentIndex][proteins[, list(nbProt=.N), keyby=parentIndex]]
-fooDT[is.na(nbHyd025), nbHyd025 := 0L]
-fooDT[, nbProt := NULL]
-table(fooDT[,nbHyd025])
-proteins <- proteins[fooDT]
 
-NROW(proteins[nbHyd025>2])
+
