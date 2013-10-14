@@ -17,7 +17,6 @@ test <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydroph
                    eludeInputFile = "/Peptides/RT_Prediction/pep_01TS.txt",
                    predictionFile = "/Peptides/RT_Prediction/pep_01TS_pred.txt",
                    imageFile = "/R_Image/test.RData")
-load(file = test)
 
 test2 <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil",
                    proteinsPath = "/data/Protein/MouseGold",
