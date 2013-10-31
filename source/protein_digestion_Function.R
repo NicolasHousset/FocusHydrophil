@@ -10,7 +10,7 @@ digestionFile <- "/Peptides/Digestion/Yeast_01TS.txt"
 eludeInputFile <- "/Peptides/RT_Prediction/pep_01TS.txt"
 predictionFile <- "/Peptides/RT_Prediction/pep_01TS_pred.txt"
 
-test <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil",
+test <- myFunction(projectPath = "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil",
                    proteinsPath = "/data/Protein/Yeast",
                    modelFile = "/data/Elude/modelHydrophil.model",
                    digestionFile = "/Peptides/Digestion/YeastGold_01TS.txt",
@@ -26,7 +26,7 @@ test2 <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrop
                    predictionFile = "/Peptides/RT_Prediction/pep_01TS_pred.txt",
                     imageFile = "/R_Image/test.RData")
 
-test3 <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil",
+test3 <- myFunction(projectPath = "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil",
                     proteinsPath = "/data/Protein/HumanGold",
                     modelFile = "/data/Elude/modelHydrophil.model",
                     digestionFile = "/Peptides/Digestion/HumanGold_01TS.txt",
