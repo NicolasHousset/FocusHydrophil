@@ -2,6 +2,9 @@
 inputPath <- "//uv2522.ugent.be/compomics/Andrea/CPTAC/"
 outputPath <- "//uv2522.ugent.be/compomics/Nicolas/CPTAC/"
 
+# Test Command
+# fileName <- inputList[[2]]
+
 joinFiles <- function(fileName,...){
   inputFile1 <- paste0(fileName, ".mgf")
   
@@ -11,8 +14,18 @@ joinFiles <- function(fileName,...){
   
   rtDT <- data.table(mgfDT[grepl("TITLE=", V1)][, sub("TITLE=", "", V1)])
   rtDT[, rtsec := mgfDT[grepl("RTINSECONDS=", V1)][, sub("RTINSECONDS=", "",V1)]]
+  rtDT[, pepmass := mgfDT[grepl("PEPMASS=", V1)][, sub("PEPMASS=", "",V1)]]
+  # Some very rare cases where there is no intensity recorded
+  rtDT <- rtDT[grepl(" ", pepmass)]
+  rtDT[, splitLine := strsplit(pepmass, " ")]
+  rtDT[, pepMZ := lapply(splitLine, "[[", 1)]
+  rtDT[, MS1_Intensity := lapply(splitLine, "[[", 2)]
   rtDT[, spectrum_id := V1]
   rtDT[, V1 := NULL]
+  rtDT <- rtDT[, list(spectrum_id, rtsec, pepMZ, MS1_Intensity)]
+  rtDT[, rtsec := as.double(rtsec)]
+  rtDT[, pepMZ := as.double(pepMZ)]
+  rtDT[, MS1_Intensity := as.double(MS1_Intensity)]
   
   inputFile2 <- paste0(fileName,"_SvenSPyeast.dat.MASCOT")
   
@@ -33,21 +46,33 @@ joinFiles <- function(fileName,...){
   percolatorDT <- data.table(read.table(file = paste0(inputPath, inputFile3),
                                         header = FALSE, row.names = NULL,
                                         sep = "\t", fill = TRUE))
-  percolatorDT <- percolatorDT[, list(V1,V2,V3,V4,V5,V6)]
-  list_var=list("PSMId","score_percolator","q_value_percolator","pep_percolator","peptide","protein","multi_pro")
+  
+  if(NCOL(percolatorDT)==6){
+    percolatorDT <- percolatorDT[, list(V1,V2,V3,V4,V5,V6)]
+    # multiple proteins make new lines with a different structure
+    percolatorDT[, multi_pro := !grepl("query", V1)]
+    percolatorDT[1:(NROW(percolatorDT)-1), multi_pro := percolatorDT[2:NROW(percolatorDT), multi_pro]]
+    percolatorDT <- percolatorDT[grepl("query", V1)]
+  }else{
+    percolatorDT <- percolatorDT[, list(V1,V2,V3,V4,V5,V6,V7)]
+    percolatorDT <- percolatorDT[grepl("query", V1)]
+    percolatorDT[, multi_pro := (V7!="")]
+  }
+  percolatorDT <- percolatorDT[, list(V1,V2,V3,V4,V5,V6, multi_pro)]
+  percolatorDT[, query := as.character(sub("query:","",sub(";rank:1","",V1)))] # extracting the query number
+  
+  list_var=list("PSMId","score_percolator","q_value_percolator","pep_percolator","peptide","protein")
   for(i in 1:6){
-    print(i)
     eval(parse(text=paste0("percolatorDT[,", list_var[i], ":= V", i, "]")))
     eval(parse(text=paste0("percolatorDT[,V", i, ":= NULL]")))
   }
-  percolatorDT[, multi_pro := !grepl("query", PSMId)]
-  percolatorDT[1:(NROW(percolatorDT)-1), multi_pro := percolatorDT[2:NROW(percolatorDT), multi_pro]]
-  percolatorDT <- percolatorDT[grepl("query", PSMId)]
-  percolatorDT[, query := as.character(sub("query:","",sub(";rank:1","",PSMId)))] # extracting the query number
   
-
+  
+  
   setkey(outputDT, query)
   setkey(percolatorDT, query)
+  
+  test <- percolatorDT[outputDT]
   
   outputDT <- percolatorDT[outputDT]
   outputDT[, fileOrigin := fileName]
@@ -104,12 +129,10 @@ inputList <- list(
 
 result <- data.table(NULL)
 
-fileName <- inputList[[5]]
 for(fileName in inputList){
+  print(fileName)
   result <- rbind(result, joinFiles(fileName))
 }
-
-result <- rbind(result, outputDT)
 
 save(list = c("result"), file=paste0(outputPath, "CPTAC_processed.RData"),
      compress = "gzip", compression_level = 1)
