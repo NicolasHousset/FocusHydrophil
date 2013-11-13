@@ -22,31 +22,27 @@ result[labels(list_experiments[c(11:15, 22, 24, 26, 28, 30, 36, 38, 39, 41, 43)]
 result[labels(list_experiments[c(1,6,11,16,21,22,35,36)]), sample := "A"]
 result[labels(list_experiments[c(2,7,12,17,23,24,31,37,38)]), sample := "B"]
 result[labels(list_experiments[c(3,8,13,18,25,26,32,39)]), sample := "C"]
+result[labels(list_experiments[c(4,9,14,19,27,28,33,40,41)]), sample := "D"]
+result[labels(list_experiments[c(5,10,15,20,29,30,34,42,43)]), sample := "E"]
+
 result[, exp := factor(paste0(lab, rep))]
 
 
 result[, rtsec.f := cut(rtsec, 100)]
-result[, q80_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, rtsec.f)]
+result[, q50_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, sample, rtsec.f)]
 
 setkey(result, exp)
-graph <- ggplot(result["lab1rep1"], aes(rtsec, log(q80_Intensity))) + geom_point() + xlim(0,10000) +  ylim(6, 15) + facet_grid(lab ~ rep)
+# Histogram of the intensity
+graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec, log(q50_Intensity))) + geom_point() + xlim(0,10000) +  ylim(6, 15) + facet_grid(sample ~ rep)
 graph 
-graph %+% result["lab1rep2"]
-ggplot(result["lab1rep2"], aes(rtsec.f, log(q80_Intensity))) + geom_point() + xlim(0,10000) + ylim(6, 15)
-ggplot(result["lab1rep3"], aes(rtsec.f, log(q80_Intensity))) + geom_point() + xlim(0,10000) + ylim(6, 15)
+graph %+% result[c("lab1rep1","lab1rep2","lab1rep3")]
+graph %+% result[c("lab2rep1","lab2rep2","lab2rep3")]
+graph %+% result[c("lab3rep1","lab3rep2","lab3rep3")]
 
 
-ggplot(result[labels(list_experiments[1:5])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[6:10])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[11:15])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
 
-ggplot(result[labels(list_experiments[16:20])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[c(21,23,25,27,29)])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[c(22,24,26,28,30)])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-
-ggplot(result[labels(list_experiments[31:34])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[c(35,37,40,42)])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result[labels(list_experiments[c(36,38,39,41,43)])], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
+graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec)) + geom_histogram(aes(y = ..count..), binwidth = 60) + xlim(0,10000) + ylim(0,150) + facet_grid(sample ~ rep)
+graph
 
 result[list_experiments[1]]
 setkey(result, lab)
