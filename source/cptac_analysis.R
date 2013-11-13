@@ -13,27 +13,153 @@ result[grepl("Orbi2", fileOrigin), lab := "lab3"]
 result[, fileOrigin.f := factor(fileOrigin)]
 list_experiments <- summary(result[, factor(fileOrigin)])
 # Each lab has three replicates
-setkey(result, fileOrigin.f)
-result[labels(list_experiments[c(1:5, 16:20, 31:34)]), rep := "rep1"]
-result[labels(list_experiments[c(6:10, 21, 23, 25, 27, 29 , 35, 37, 40, 42)]), rep := "rep2"]
-result[labels(list_experiments[c(11:15, 22, 24, 26, 28, 30, 36, 38, 39, 41, 43)]), rep := "rep3"]
+setkey(result, fileOrigin)
 
-# Each experiment measures one of those 5 samples : A, B, C, D, E
-result[labels(list_experiments[c(1,6,11,16,21,22,35,36)]), sample := "A"]
-result[labels(list_experiments[c(2,7,12,17,23,24,31,37,38)]), sample := "B"]
-result[labels(list_experiments[c(3,8,13,18,25,26,32,39)]), sample := "C"]
-result[labels(list_experiments[c(4,9,14,19,27,28,33,40,41)]), sample := "D"]
-result[labels(list_experiments[c(5,10,15,20,29,30,34,42,43)]), sample := "E"]
+result[c("20080311_CPTAC6_04_6QC2",
+         "20080311_CPTAC6_07_6A005",
+         "20080311_CPTAC6_10_6B019",
+         "20080311_CPTAC6_13_6C012",
+         "20080311_CPTAC6_16_6D014",
+         "20080311_CPTAC6_19_6E010",
+         "20080311_CPTAC6_22_6QC1",
+         "mam_042408o_CPTAC_study6_6QC2",
+         "mam_042408o_CPTAC_study6_6A018",
+         "mam_042408o_CPTAC_study6_6B011",
+         "mam_042408o_CPTAC_study6_6C008",
+         "mam_042408o_CPTAC_study6_6D004",
+         "mam_042408o_CPTAC_study6_6E004",
+         "mam_042408o_CPTAC_study6_6QC1",
+         "Orbi2_study6a_W080314_6QC2_yeast_ft8_pc",
+         "Orbi2_study6a_W080314_6B007_yeast_S48_ft8_pc",
+         "Orbi2_study6a_W080314_6C001_yeast_S48_ft8_pc",
+         "Orbi2_study6a_W080314_6D007_yeast_S48_ft8_pc",
+         "Orbi2_study6a_W080314_6E008_yeast_S48_ft8_pc",
+         "Orbi2_study6a_W080314_6QC1_sigma48_ft8_pc"), rep := "rep1"]
+
+result[c("20080313_CPTAC6_04_6QC2",
+         "20080313_CPTAC6_07_6A005",
+         "20080313_CPTAC6_10_6B019",
+         "20080313_CPTAC6_13_6C012",
+         "20080313_CPTAC6_16_6D014",
+         "20080313_CPTAC6_19_6E010",
+         "20080313_CPTAC6_22_6QC1",
+         "mam_050108o_CPTAC_study6_6QC2",
+         "mam_050108o_CPTAC_study6_6A018",
+         "mam_050108o_CPTAC_study6_6B011",
+         "mam_050108o_CPTAC_study6_6C008",
+         "mam_050108o_CPTAC_study6_6D004",
+         "mam_050108o_CPTAC_study6_6E004",
+         "mam_050108o_CPTAC_study6_6QC1",
+         "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_01",
+         "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_01"), rep := "rep2"]
+
+result[c("20080315_CPTAC6_04_6QC2",
+         "20080315_CPTAC6_07_6A005",
+         "20080315_CPTAC6_10_6B019",
+         "20080315_CPTAC6_13_6C012",
+         "20080315_CPTAC6_16_6D014",
+         "20080315_CPTAC6_19_6E010",
+         "20080315_CPTAC6_22_6QC1",
+         "mam_050108o_CPTAC_study6_6QC2_080504134857",
+         "mam_050108o_CPTAC_study6_6A018_080504183404",
+         "mam_050108o_CPTAC_study6_6B011_080504231912",
+         "mam_050108o_CPTAC_study6_6C008_080505040419",
+         "mam_050108o_CPTAC_study6_6D004_080505084927",
+         "mam_050108o_CPTAC_study6_6E004_080505133441",
+         "mam_050108o_CPTAC_study6_6QC1_080505181949",
+         "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_02",
+         "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_02",
+         "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_02",
+         "Orbi2_study6b_W080321_6C001_yeast_S48_ft8_pc_02",
+         "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_02",
+         "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_02",
+         "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_02"), rep := "rep3"]
+
+
+# Each experiment measures one of those 7 samples : QC2, A, B, C, D, E, QC1
+result[c("20080311_CPTAC6_04_6QC2",
+         "20080313_CPTAC6_04_6QC2",
+         "20080315_CPTAC6_04_6QC2",
+         "mam_042408o_CPTAC_study6_6QC2",
+         "mam_050108o_CPTAC_study6_6QC2",
+         "mam_050108o_CPTAC_study6_6QC2_080504134857",
+         "Orbi2_study6a_W080314_6QC2_yeast_ft8_pc",
+         "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_01",
+         "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_02"), sample := "1_QC2"]
+
+result[c("20080311_CPTAC6_07_6A005",
+         "20080313_CPTAC6_07_6A005",
+         "20080315_CPTAC6_07_6A005",
+         "mam_042408o_CPTAC_study6_6A018",
+         "mam_050108o_CPTAC_study6_6A018",
+         "mam_050108o_CPTAC_study6_6A018_080504183404",
+         "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_02"), sample := "2_A"]
+
+result[c("20080311_CPTAC6_10_6B019",
+         "20080313_CPTAC6_10_6B019",
+         "20080315_CPTAC6_10_6B019",
+         "mam_042408o_CPTAC_study6_6B011",
+         "mam_050108o_CPTAC_study6_6B011",
+         "mam_050108o_CPTAC_study6_6B011_080504231912",
+         "Orbi2_study6a_W080314_6B007_yeast_S48_ft8_pc",
+         "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_02"), sample := "3_B"]
+
+result[c("20080311_CPTAC6_13_6C012",
+         "20080313_CPTAC6_13_6C012",
+         "20080315_CPTAC6_13_6C012",
+         "mam_042408o_CPTAC_study6_6C008",
+         "mam_050108o_CPTAC_study6_6C008",
+         "mam_050108o_CPTAC_study6_6C008_080505040419",
+         "Orbi2_study6a_W080314_6C001_yeast_S48_ft8_pc",
+         "Orbi2_study6b_W080321_6C001_yeast_S48_ft8_pc_02"), sample := "4_C"]
+
+result[c("20080311_CPTAC6_16_6D014",
+         "20080313_CPTAC6_16_6D014",
+         "20080315_CPTAC6_16_6D014",
+         "mam_042408o_CPTAC_study6_6D004",
+         "mam_050108o_CPTAC_study6_6D004",
+         "mam_050108o_CPTAC_study6_6D004_080505084927",
+         "Orbi2_study6a_W080314_6D007_yeast_S48_ft8_pc",
+         "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_02"), sample := "5_D"]
+
+result[c("20080311_CPTAC6_19_6E010",
+         "20080313_CPTAC6_19_6E010",
+         "20080315_CPTAC6_19_6E010",
+         "mam_042408o_CPTAC_study6_6E004",
+         "mam_050108o_CPTAC_study6_6E004",
+         "mam_050108o_CPTAC_study6_6E004_080505133441",
+         "Orbi2_study6a_W080314_6E008_yeast_S48_ft8_pc",
+         "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_02"), sample := "6_E"]
+
+result[c("20080311_CPTAC6_22_6QC1",
+         "20080313_CPTAC6_22_6QC1",
+         "20080315_CPTAC6_22_6QC1",
+         "mam_042408o_CPTAC_study6_6QC1",
+         "mam_050108o_CPTAC_study6_6QC1",
+         "mam_050108o_CPTAC_study6_6QC1_080505181949",
+         "Orbi2_study6a_W080314_6QC1_sigma48_ft8_pc",
+         "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_01",
+         "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_02"), sample := "7_QC1"]
+
 
 result[, exp := factor(paste0(lab, rep))]
 
 
 result[, rtsec.f := cut(rtsec, 100)]
 result[, q50_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, sample, rtsec.f)]
+result[, q_value_percolator := as.double(as.character(q_value_percolator))]
 
 setkey(result, exp)
 # Histogram of the intensity
-graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec, log(q50_Intensity))) + geom_point() + xlim(0,10000) +  ylim(6, 15) + facet_grid(sample ~ rep)
+graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec, log(q50_Intensity))) + geom_point() + xlim(0,10000) +  ylim(6.5, 13) + facet_grid(sample ~ rep)
 graph 
 graph %+% result[c("lab1rep1","lab1rep2","lab1rep3")]
 graph %+% result[c("lab2rep1","lab2rep2","lab2rep3")]
@@ -51,10 +177,15 @@ ggplot(result["lab2"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwid
 ggplot(result["lab3"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
 
 
+setkey(result, sample)
 
-result_filtered <- result[as.double(as.character(q_value_percolator)) < 0.01][multi_pro == FALSE]
 
-table(result_filtered[, multi_pro])
+result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
+result_filtered[, ups := grepl("ups",protein)]
+
+setkey(result_filtered, sample)
+table(result_filtered[, paste0(lab,sample)])
+
 
 setkey(result_filtered, fileOrigin, modseq)
 countsPerProject <- unique(result_filtered)[, list(fileOrigin,modseq)]

@@ -130,22 +130,23 @@ inputList <- list(
   "Orbi2_study6a_W080314_6D007_yeast_S48_ft8_pc",
   "Orbi2_study6a_W080314_6E008_yeast_S48_ft8_pc",
   "Orbi2_study6a_W080314_6QC1_sigma48_ft8_pc",
-  "Orbi2_study6a_W080314_6QC2_yeast_ft8_pc_01",
+  "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_01",
   "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_01",
   "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_01",
   "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_01",
   "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_01",
-  "Orbi2_study6a_W080314_6QC1_sigma48_ft8_pc_01",
-  "Orbi2_study6a_W080314_6QC2_yeast_ft8_pc_02",
+  "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_01",
+  "Orbi2_study6b_W080321_6QC2_yeast_ft8_pc_02",
   "Orbi2_study6b_W080321_6A013_yeast_S48_ft8_pc_02",
   "Orbi2_study6b_W080321_6B007_yeast_S48_ft8_pc_02",
   "Orbi2_study6b_W080321_6C001_yeast_S48_ft8_pc_02",
   "Orbi2_study6b_W080321_6D007_yeast_S48_ft8_pc_02",
   "Orbi2_study6b_W080321_6E008_yeast_S48_ft8_pc_02",
-  "Orbi2_study6a_W080314_6QC1_sigma48_ft8_pc_02"
+  "Orbi2_study6b_W080321_6QC1_sigma48_ft8_pc_02"
 )
 
 result <- data.table(NULL)
+
 
 for(fileName in inputList){
   print(fileName)
