@@ -183,9 +183,6 @@ setkey(result, sample)
 result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
 result_filtered[, ups := grepl("ups",protein)]
 
-setkey(result_filtered, sample)
-table(result_filtered[, paste0(lab,sample)])
-
 
 setkey(result_filtered, fileOrigin, modseq)
 countsPerProject <- unique(result_filtered)[, list(fileOrigin,modseq)]
@@ -204,20 +201,228 @@ dt[, rank_peptide := 1:NROW(nbProjPerPeptide)]
 dt[, nbProjPep := -nbProjPep]
 
 
-result_filtered_2 <- result_filtered[rtsec < 4000]
-setkey(result_filtered_2, fileOrigin, protein)
-countsPerProtein <- unique(result_filtered_2)[, list(fileOrigin,protein)]
-countsPerProtein[, protein.f := factor(protein)]
+convenient_vector <- 1:4000
+setkey(result_filtered, fileOrigin, modseq, rtsec)
+# Add an index : 1 for the first time a peptide is encountered in a LC-run, 2 the second time, etc...
+# convenient_vector is automatically shrinked to the appropriate size : that is very convenient :)
+result_filtered[, index_rt1 := convenient_vector, by = c("fileOrigin","modseq")]
+# Slightly different index : number of times the peptide is identified in the LC-run.
+result_filtered[, size_rt := .N, by = c("fileOrigin", "modseq")]
 
-nbProjPerProtein <- summary(countsPerProtein[, protein.f], maxsum = 1000000)
-id_protein <- 1:NROW(nbProjPerProtein)
-dt <- data.table(id_protein)
-dt[, protein := labels(nbProjPerProtein)]
-dt[, nbProjProt := -nbProjPerProtein]
-# This ordering makes most common peptides appear first
-setkey(dt, nbProjProt)
-# We save the rank
-dt[, rank_protein := 1:NROW(nbProjPerProtein)]
-# Number of projects is brought back to a positive number
-dt[, nbProjProt := -nbProjProt]
+result_filtered[,MS1_Intensity := -MS1_Intensity]
+setkey(result_filtered, fileOrigin, modseq, MS1_Intensity)
+result_filtered[, index_rt2 := convenient_vector, by = c("fileOrigin","modseq")]
+result_filtered[,MS1_Intensity := -MS1_Intensity]
 
+setkey(result_filtered, modseq)
+pepUnique <- unique(result_filtered)
+
+mod_pep <- pepUnique[, modseq]
+modif <- gregexpr("[ACDEFGHIKLMNPQRSTVWY]{1}<[-]*[ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\\.]+>", mod_pep, ignore.case = TRUE)
+modifN <- gregexpr("^[ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789]+[-]", mod_pep, ignore.case = TRUE)
+modifC <- gregexpr("[-][ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789]+$", mod_pep, ignore.case = TRUE)
+
+listmod <- vector("list", NROW(modif))
+for (i in (1:NROW(modif))){
+  listmod[[i]] <- vector("character",4)
+  for (j in (1:NROW(modif[[i]]))){
+    if(modif[[i]][[j]] > -1){
+      listmod[[i]][[j]] <- substr(mod_pep[[i]], modif[[i]][[j]], modif[[i]][[j]]+attr(modif[[i]],"match.length")[[j]]-1)
+    }
+  }
+}
+
+listmodN <- vector("list", NROW(modifN))
+for (i in (1:NROW(modifN))){
+  listmodN[[i]] <- vector("character",1)
+  for (j in (1:NROW(modifN[[i]]))){
+    if(modifN[[i]][[j]] > -1){
+      listmodN[[i]][[j]] <- substr(mod_pep[[i]], modifN[[i]][[j]], modifN[[i]][[j]]+attr(modifN[[i]],"match.length")[[j]]-1)
+    }
+  }
+}
+
+listmodC <- vector("list", NROW(modifC))
+for (i in (1:NROW(modifC))){
+  listmodC[[i]] <- vector("character",1)
+  for (j in (1:NROW(modifC[[i]]))){
+    if(modifC[[i]][[j]] > -1){
+      listmodC[[i]][[j]] <- substr(mod_pep[[i]], modifC[[i]][[j]], modifC[[i]][[j]]+attr(modifC[[i]],"match.length")[[j]]-1)
+    }
+  }
+}
+
+pepUnique[, listMod := listmod]
+pepUnique <- pepUnique[, list(modseq, listMod)]
+pepUnique[, mod1 := as.character(lapply(listmod, "[[", 1))]
+pepUnique[, mod2 := as.character(lapply(listmod, "[[", 2))]
+pepUnique[, mod3 := as.character(lapply(listmod, "[[", 3))]
+pepUnique[, mod4 := as.character(lapply(listmod, "[[", 4))]
+pepUnique[, modN := as.character(lapply(listmodN, "[[", 1))]
+pepUnique[, modC := as.character(lapply(listmodC, "[[", 1))]
+
+setkey(pepUnique, modseq)
+setkey(result_filtered, modseq)
+result_filtered <- pepUnique[result_filtered]
+
+# For some reason Percolator rejects all the modified Q
+result_filtered <- result_filtered[(mod1=="M<15.994915>" | mod1=="" | mod1=="C<57.021464>" | mod1=="Q<-17>") &
+                         modN=="0-"]
+
+result_filtered[substr(modseq, 1, 2) == "0-", elude_sequence := substr(modseq, 3,nchar(modseq))]
+result_filtered[, elude_sequence := gsub("<","[",elude_sequence)]
+result_filtered[, elude_sequence := gsub(">","]",elude_sequence)]
+result_filtered[, elude_sequence := gsub("\\.",",",elude_sequence)]
+
+# Calling ELUDE to predict a normalized retention time
+setkey(result_filtered, elude_sequence)
+pepUnique <- unique(result_filtered)[, list(elude_sequence)]
+
+projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
+write.table(pepUnique, file=paste0(projectPath, "/data/ELUDE/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+
+
+verbFlag <- " -v "
+testFlag <- " -e "
+savePredictFlag <- " -o "
+ignoreNewTestPTMFlag <- " -p "
+verbLevel <- " 5"
+
+testData <- "/data/ELUDE/CPTAC_Peptides.txt"
+testData <- shQuote(paste0(projectPath, testData))
+
+savePredict <- "/data/ELUDE/predictionsCPTAC.out"
+savePredict <- shQuote(paste0(projectPath, savePredict))
+
+loadModel <- "/data/ELUDE/modelHydrophil.model"
+loadModel <- shQuote(paste0(projectPath, loadModel))
+
+loadModelFlag <- " -l "
+
+# This time we apply the model on the testing data, but using the median
+eludePath <- "C:/Program Files (x86)/Elude"
+strCommand <- paste0("cd ",shQuote(eludePath), " && elude ", verbFlag, verbLevel, testFlag,
+                     testData, loadModelFlag, loadModel,
+                     savePredictFlag, savePredict, ignoreNewTestPTMFlag)
+shell(strCommand, translate = TRUE, wait = TRUE)
+
+results <- data.table(read.table(file=paste0(projectPath, "/data/ELUDE/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
+setkey(results, Peptide)
+setkey(result_filtered, elude_sequence)
+
+# ggplot(results, aes(Predicted_RT)) + geom_histogram(aes(y = ..density..), binwidth = 0.05)
+
+result_filtered <- results[result_filtered]
+
+# Trying to map the predicted RT and what we observe
+graph <- ggplot(result_filtered, aes(Predicted_RT, rtsec)) + geom_point(alpha = 1/10) + xlim(-1.5,1.5) + ylim(0,7500) + facet_grid(lab ~ rep)
+# The behavior is not the same across laboratories
+# Purpose: finding a "natural" mapping and observe how the error evolves around the gradient.
+# lab1: -0.8: 900 ; 0.5: 4000 >> -1.17 + x ° 4.194.e-4
+# lab2: -0.5: 2000 ; 0.75: 5000 >> -1.32 + x ° 4.167.e-4
+# lab3: -1: 1500 ; 0.5: 4500 >> -1.75 + x ° 5.e-4
+
+setkey(result_filtered, lab)
+result_filtered["lab1", rt_mapped := (-1.17 + rtsec * 0.0004194)]
+result_filtered["lab2", rt_mapped := (-1.2 + rtsec * 0.0004)]
+result_filtered["lab3", rt_mapped := (-1.7 + rtsec * 0.00045)]
+
+graph <- ggplot(result_filtered, aes(Predicted_RT, rtsec)) + geom_point(alpha = 1/10) + xlim(-1.5,1.5) + ylim(0,6000) + facet_grid(lab ~ rep)
+graph
+
+graph <- ggplot(result_filtered, aes(Predicted_RT)) + geom_histogram(aes(y = ..density.., colour = lab), binwidth = 0.1, position = "dodge") + xlim(-1.5,1.5) + facet_grid(rep ~ .)
+graph <- ggplot(result_filtered, aes(Predicted_RT)) + geom_density(aes(colour = lab)) + xlim(-1.5,1.5) + facet_grid(. ~ rep)
+graph
+
+
+
+# Let's try to automate the process
+# A starting point, using the three quartiles
+
+result_filtered[, rt25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
+result_filtered[, rt50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
+result_filtered[, rt75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
+result_filtered[, pred25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
+result_filtered[, pred50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
+result_filtered[, pred75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
+
+result_filtered[, q25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
+result_filtered[, q50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
+result_filtered[, q75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
+
+setkey(result_filtered, lab, rep)
+lm_part1 <- result_filtered[, list(lab, rep, q25, q50, q75)]
+setkey(lm_part1, lab, rep)
+lm_part1 <- unique(lm_part1)
+
+lm_part1 <- data.table(melt(data = lm_part1, 
+                            id.vars = c("lab", "rep"), 
+                            measure.vars = c("q25","q50","q75"),
+                            variable.name = "quartile",
+                            value.name = "rtquartile"))
+
+
+result_filtered[, q25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
+result_filtered[, q50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
+result_filtered[, q75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
+
+setkey(result_filtered, lab, rep)
+lm_part2 <- result_filtered[, list(lab, rep, q25, q50, q75)]
+setkey(lm_part2, lab, rep)
+lm_part2 <- unique(lm_part2)
+
+lm_part2 <- data.table(melt(data = lm_part2, 
+                            id.vars = c("lab", "rep"), 
+                            measure.vars = c("q25","q50","q75"),
+                            variable.name = "quartile",
+                            value.name = "predquartile"))
+
+setkey(lm_part1, lab, rep, quartile)
+setkey(lm_part2, lab, rep, quartile)
+
+lm_melted <- lm_part2[lm_part1]
+setkey(lm_melted, lab, rep)
+
+list_mapping <- unique(lm_melted[, list(lab, rep)])
+setkey(list_mapping, lab, rep)
+list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
+for(i in c("lab1","lab2","lab3")){
+  for(j in c("rep1","rep2","rep3")){
+    linear_model <- lm(predquartile~rtquartile, data=lm_melted[list(i,j)])
+    list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
+    list_mapping[list(i,j), slope := linear_model[[1]][[2]]]    
+  }
+}
+
+setkey(result_filtered, lab, rep)
+for(i in c("lab1","lab2","lab3")){
+  for(j in c("rep1","rep2","rep3")){
+    result_filtered[list(i,j), rt_mapped := list_mapping[list(i,j)][, intercept] + list_mapping[list(i,j)][, slope] * rtsec]
+  }
+}
+
+
+result_filtered[, diff := Predicted_RT - rt_mapped]
+
+result_filtered[, centile := ceiling(rt_mapped * 50)]
+result_filtered[, meanError := mean(diff), by = list(lab,rep,centile)]
+result_filtered[, q975 := quantile(diff, probs = 0.975), by = list(lab,rep,centile)]
+result_filtered[, q025 := quantile(diff, probs = 0.025), by = list(lab,rep,centile)]
+result_filtered[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile)]
+result_filtered[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
+result_filtered[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
+
+ggplot(result_filtered, aes(centile, q975-q025)) + geom_point() + xlim(-75,75)+ ylim(0,1) + facet_grid(lab ~ rep)
+
+graphDS <- data.table(melt(data = result_filtered, 
+                id.vars = c("lab", "rep", "Peptide","index_rt2", "centile"), 
+                measure.vars = c("q025","q250","q500","q750","q975"),
+                variable.name = "quantile",
+                value.name = "error"))
+
+setkey(graphDS, lab, rep, quantile, centile)
+graphDS <- unique(graphDS)
+
+ggplot(graphDS, aes(centile, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(-75,75)+ ylim(-0.6,0.3) + facet_grid(lab ~ rep)
+
+ggplot(result_filtered, aes(centile, q500)) + geom_point(alpha=(1/2), aes(colour=rep)) + xlim(-150,150) + ylim(-1, 0.5)+ facet_grid(lab ~ rep) 
