@@ -1,7 +1,8 @@
 # Retention time is predicted, now we can play around with the notion of hydrophobicity and number of peptides satisfying the condition
 
+projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
-proteinsPath <- "/data/Protein/MouseGold"
+proteinsPath <- "/data/Protein/Yeast"
 imageFile <- "/R_Image/test.RData"
 
 load(file = paste0(projectPath, proteinsPath, imageFile))
@@ -49,7 +50,7 @@ for(i in 1:5){
 }
 
 a[40, atLeast_3] / 16625
-ggplot(a, aes(V1, atLeast_3/NROW(proteins))) + geom_line() + xlim(0,100) + ylim(0,1)
+ggplot(a, aes(V1, atLeast_3/NROW(proteins))) + geom_line() + xlim(0,70) + ylim(0,1) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
 a[100, atLeast_3] / 6621
 
 ggplot(proteins, aes(rtlt_0.25)) + geom_histogram(binwidth=3)

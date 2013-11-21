@@ -184,22 +184,6 @@ result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
 result_filtered[, ups := grepl("ups",protein)]
 
 
-setkey(result_filtered, fileOrigin, modseq)
-countsPerProject <- unique(result_filtered)[, list(fileOrigin,modseq)]
-countsPerProject[, modseq.f := factor(modseq)]
-
-nbProjPerPeptide <- summary(countsPerProject[, modseq.f], maxsum = 1000000)
-id_peptide <- 1:NROW(nbProjPerPeptide)
-dt <- data.table(id_peptide)
-dt[, modified_sequence := labels(nbProjPerPeptide)]
-dt[, nbProjPep := -nbProjPerPeptide]
-# This ordering makes most common peptides appear first
-setkey(dt, nbProjPep)
-# We save the rank
-dt[, rank_peptide := 1:NROW(nbProjPerPeptide)]
-# Number of projects is brought back to a positive number
-dt[, nbProjPep := -nbProjPep]
-
 
 convenient_vector <- 1:4000
 setkey(result_filtered, fileOrigin, modseq, rtsec)
@@ -267,162 +251,78 @@ result_filtered <- pepUnique[result_filtered]
 
 # For some reason Percolator rejects all the modified Q
 result_filtered <- result_filtered[(mod1=="M<15.994915>" | mod1=="" | mod1=="C<57.021464>" | mod1=="Q<-17>") &
-                         modN=="0-"]
+                                     modN=="0-"]
 
 result_filtered[substr(modseq, 1, 2) == "0-", elude_sequence := substr(modseq, 3,nchar(modseq))]
 result_filtered[, elude_sequence := gsub("<","[",elude_sequence)]
 result_filtered[, elude_sequence := gsub(">","]",elude_sequence)]
 result_filtered[, elude_sequence := gsub("\\.",",",elude_sequence)]
 
+
 # Calling ELUDE to predict a normalized retention time
-setkey(result_filtered, elude_sequence)
-pepUnique <- unique(result_filtered)[, list(elude_sequence)]
+setkey(result_filtered, lab)
+onelab <- result_filtered["lab1"]
+
+setkey(onelab, elude_sequence, fileOrigin)
+pepUnique <- unique(onelab)[, list(elude_sequence, rtsec)]
+setkey(pepUnique,elude_sequence)
+pepUnique[, q50 := quantile(rtsec, probs = 0.5), by = elude_sequence]
+pepCalibration <- unique(pepUnique)[, list(elude_sequence, q50)]
 
 projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
-write.table(pepUnique, file=paste0(projectPath, "/data/ELUDE/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+write.table(pepUnique[, list(elude_sequence, rtsec)], file=paste0(projectPath, "/data/ELUDE/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+write.table(pepCalibration, file=paste0(projectPath, "/data/ELUDE/CPTAC_Calibration.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
 
 
-verbFlag <- " -v "
-testFlag <- " -e "
-savePredictFlag <- " -o "
-ignoreNewTestPTMFlag <- " -p "
-verbLevel <- " 5"
+verbFlag <- "-v"
+verbLevel <- "5"
 
+trainFlag <- "-t"
+calibrationData <- "/data/ELUDE/CPTAC_Calibration.txt"
+calibrationData <- shQuote(paste0(projectPath, calibrationData))
+testFlag <- "-e"
 testData <- "/data/ELUDE/CPTAC_Peptides.txt"
 testData <- shQuote(paste0(projectPath, testData))
 
+testRTFlag <- "-g"
+ltsAdjustmentFlag <- "-c"
+ltsAdjustmentCoverage <- "0.5"
+
+loadModelFlag <- "-l"
+loadModel <- "/data/ELUDE/library/modelHydrophil.model"
+loadModel <- shQuote(paste0(projectPath, loadModel))
+
+savePredictFlag <- "-o"
 savePredict <- "/data/ELUDE/predictionsCPTAC.out"
 savePredict <- shQuote(paste0(projectPath, savePredict))
 
-loadModel <- "/data/ELUDE/modelHydrophil.model"
-loadModel <- shQuote(paste0(projectPath, loadModel))
+ignoreNewTestPTMFlag <- "-p"
 
-loadModelFlag <- " -l "
 
-# This time we apply the model on the testing data, but using the median
-eludePath <- "C:/Program Files (x86)/Elude"
-strCommand <- paste0("cd ",shQuote(eludePath), " && elude ", verbFlag, verbLevel, testFlag,
-                     testData, loadModelFlag, loadModel,
-                     savePredictFlag, savePredict, ignoreNewTestPTMFlag)
-shell(strCommand, translate = TRUE, wait = TRUE)
+eludeCall <- "elude"
+system2(eludeCall, args = c(verbFlag, verbLevel, trainFlag, calibrationData, testFlag, testData, testRTFlag,
+                            loadModelFlag, loadModel,
+                            savePredictFlag, savePredict, ignoreNewTestPTMFlag),
+        stdout=TRUE, stderr = TRUE)
+
+system2(eludeCall, args = c(verbFlag, verbLevel, testFlag, testData, testRTFlag,
+                             ltsAdjustmentFlag, ltsAdjustmentCoverage, 
+                             loadModelFlag, loadModel,
+                             savePredictFlag, savePredict, ignoreNewTestPTMFlag),
+        stdout=TRUE, stderr = TRUE)
+
+
 
 results <- data.table(read.table(file=paste0(projectPath, "/data/ELUDE/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
-setkey(results, Peptide)
-setkey(result_filtered, elude_sequence)
+setkey(results, Peptide, Observed_RT)
+setkey(onelab, elude_sequence, rtsec)
 
 # ggplot(results, aes(Predicted_RT)) + geom_histogram(aes(y = ..density..), binwidth = 0.05)
 
+test <- results[onelab]
+
 result_filtered <- results[result_filtered]
 
-# Trying to map the predicted RT and what we observe
-graph <- ggplot(result_filtered, aes(Predicted_RT, rtsec)) + geom_point(alpha = 1/10) + xlim(-1.5,1.5) + ylim(0,7500) + facet_grid(lab ~ rep)
-# The behavior is not the same across laboratories
-# Purpose: finding a "natural" mapping and observe how the error evolves around the gradient.
-# lab1: -0.8: 900 ; 0.5: 4000 >> -1.17 + x ° 4.194.e-4
-# lab2: -0.5: 2000 ; 0.75: 5000 >> -1.32 + x ° 4.167.e-4
-# lab3: -1: 1500 ; 0.5: 4500 >> -1.75 + x ° 5.e-4
-
-setkey(result_filtered, lab)
-result_filtered["lab1", rt_mapped := (-1.17 + rtsec * 0.0004194)]
-result_filtered["lab2", rt_mapped := (-1.2 + rtsec * 0.0004)]
-result_filtered["lab3", rt_mapped := (-1.7 + rtsec * 0.00045)]
-
-graph <- ggplot(result_filtered, aes(Predicted_RT, rtsec)) + geom_point(alpha = 1/10) + xlim(-1.5,1.5) + ylim(0,6000) + facet_grid(lab ~ rep)
-graph
-
-graph <- ggplot(result_filtered, aes(Predicted_RT)) + geom_histogram(aes(y = ..density.., colour = lab), binwidth = 0.1, position = "dodge") + xlim(-1.5,1.5) + facet_grid(rep ~ .)
-graph <- ggplot(result_filtered, aes(Predicted_RT)) + geom_density(aes(colour = lab)) + xlim(-1.5,1.5) + facet_grid(. ~ rep)
-graph
+save(result_filtered, file =  paste0(projectPath,"/data/CPTAC_predicted.RData"), compression_level=1)
 
 
-
-# Let's try to automate the process
-# A starting point, using the three quartiles
-
-result_filtered[, rt25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
-result_filtered[, rt50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
-result_filtered[, rt75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
-result_filtered[, pred25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
-result_filtered[, pred50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
-result_filtered[, pred75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
-
-result_filtered[, q25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
-result_filtered[, q50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
-result_filtered[, q75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
-
-setkey(result_filtered, lab, rep)
-lm_part1 <- result_filtered[, list(lab, rep, q25, q50, q75)]
-setkey(lm_part1, lab, rep)
-lm_part1 <- unique(lm_part1)
-
-lm_part1 <- data.table(melt(data = lm_part1, 
-                            id.vars = c("lab", "rep"), 
-                            measure.vars = c("q25","q50","q75"),
-                            variable.name = "quartile",
-                            value.name = "rtquartile"))
-
-
-result_filtered[, q25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
-result_filtered[, q50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
-result_filtered[, q75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
-
-setkey(result_filtered, lab, rep)
-lm_part2 <- result_filtered[, list(lab, rep, q25, q50, q75)]
-setkey(lm_part2, lab, rep)
-lm_part2 <- unique(lm_part2)
-
-lm_part2 <- data.table(melt(data = lm_part2, 
-                            id.vars = c("lab", "rep"), 
-                            measure.vars = c("q25","q50","q75"),
-                            variable.name = "quartile",
-                            value.name = "predquartile"))
-
-setkey(lm_part1, lab, rep, quartile)
-setkey(lm_part2, lab, rep, quartile)
-
-lm_melted <- lm_part2[lm_part1]
-setkey(lm_melted, lab, rep)
-
-list_mapping <- unique(lm_melted[, list(lab, rep)])
-setkey(list_mapping, lab, rep)
-list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
-for(i in c("lab1","lab2","lab3")){
-  for(j in c("rep1","rep2","rep3")){
-    linear_model <- lm(predquartile~rtquartile, data=lm_melted[list(i,j)])
-    list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
-    list_mapping[list(i,j), slope := linear_model[[1]][[2]]]    
-  }
-}
-
-setkey(result_filtered, lab, rep)
-for(i in c("lab1","lab2","lab3")){
-  for(j in c("rep1","rep2","rep3")){
-    result_filtered[list(i,j), rt_mapped := list_mapping[list(i,j)][, intercept] + list_mapping[list(i,j)][, slope] * rtsec]
-  }
-}
-
-
-result_filtered[, diff := Predicted_RT - rt_mapped]
-
-result_filtered[, centile := ceiling(rt_mapped * 50)]
-result_filtered[, meanError := mean(diff), by = list(lab,rep,centile)]
-result_filtered[, q975 := quantile(diff, probs = 0.975), by = list(lab,rep,centile)]
-result_filtered[, q025 := quantile(diff, probs = 0.025), by = list(lab,rep,centile)]
-result_filtered[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile)]
-result_filtered[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
-result_filtered[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
-
-ggplot(result_filtered, aes(centile, q975-q025)) + geom_point() + xlim(-75,75)+ ylim(0,1) + facet_grid(lab ~ rep)
-
-graphDS <- data.table(melt(data = result_filtered, 
-                id.vars = c("lab", "rep", "Peptide","index_rt2", "centile"), 
-                measure.vars = c("q025","q250","q500","q750","q975"),
-                variable.name = "quantile",
-                value.name = "error"))
-
-setkey(graphDS, lab, rep, quantile, centile)
-graphDS <- unique(graphDS)
-
-ggplot(graphDS, aes(centile, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(-75,75)+ ylim(-0.6,0.3) + facet_grid(lab ~ rep)
-
-ggplot(result_filtered, aes(centile, q500)) + geom_point(alpha=(1/2), aes(colour=rep)) + xlim(-150,150) + ylim(-1, 0.5)+ facet_grid(lab ~ rep) 
