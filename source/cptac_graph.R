@@ -1,26 +1,28 @@
 projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
+projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
+
 plotPath <- "/plot/MappingPredGrad"
 load(file= paste0(projectPath, "/data/CPTAC_predicted.RData"))
 
-setkey(result_filtered, exp)
+setkey(globalResults, exp)
 
 
 # Trying to map the predicted RT and what we observe
-graph <- ggplot(result_filtered["lab1rep1"], aes(Predicted_RT)) + geom_histogram(aes(y = ..density..), binwidth = 0.04)
+graph <- ggplot(globalResults["lab1rep1"], aes(ELUDE_RT_NOLTS)) + geom_histogram(aes(y = ..density..), binwidth = 0.04)
 
 png(filename = paste0(projectPath,plotPath,"/1_GradPred.png"),
                       width = 800, height = 800, units = "px")
 graph + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
 dev.off()
 
-graph <- ggplot(result_filtered["lab1rep1"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 100)
+graph <- ggplot(globalResults["lab1rep1"], aes(rtsec)) + geom_histogram(aes(y =..density..), binwidth = 100)
 png(filename = paste0(projectPath,plotPath,"/2_GradExp.png"),
     width = 800, height = 800, units = "px")
 graph + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
 dev.off()
 
 
-graph <- ggplot(result_filtered["lab1rep1"], aes(Predicted_RT, rtsec)) + geom_point(alpha = 1/4) + xlim(-1.5,1.5) + ylim(0,6000)
+graph <- ggplot(globalResults["lab1rep1"], aes(ELUDE_RT_NOLTS, rtsec)) + geom_point(alpha = 1/4) + xlim(-1.5,1.5) + ylim(0,6000)
 png(filename = paste0(projectPath,plotPath,"/3_RawPredExp.png"),
     width = 800, height = 800, units = "px")
 graph + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
@@ -33,7 +35,7 @@ graph + theme(text = element_text(size = 30), panel.background = element_blank()
 
 
 
-graph <- ggplot(result_filtered, aes(Predicted_RT)) + geom_density(aes(colour = lab)) + xlim(-1.5,1.5) + facet_grid(. ~ rep)
+graph <- ggplot(globalResults, aes(ELUDE_RT_NOLTS)) + geom_density(aes(colour = lab)) + xlim(-1.5,1.5) + facet_grid(. ~ rep)
 graph
 
 
@@ -41,19 +43,13 @@ graph
 # Let's try to automate the process
 # A starting point, using the three quartiles
 
-result_filtered[, rt25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
-result_filtered[, rt50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
-result_filtered[, rt75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
-result_filtered[, pred25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
-result_filtered[, pred50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
-result_filtered[, pred75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
 
-result_filtered[, q25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
-result_filtered[, q50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
-result_filtered[, q75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
+globalResults[, q25 := quantile(rtsec, probs = 0.25), by = list(lab, rep)]
+globalResults[, q50 := quantile(rtsec, probs = 0.5), by = list(lab, rep)]
+globalResults[, q75 := quantile(rtsec, probs = 0.75), by = list(lab, rep)]
 
-setkey(result_filtered, lab, rep)
-lm_part1 <- result_filtered[, list(lab, rep, q25, q50, q75)]
+setkey(globalResults, lab, rep)
+lm_part1 <- globalResults[, list(lab, rep, q25, q50, q75)]
 setkey(lm_part1, lab, rep)
 lm_part1 <- unique(lm_part1)
 
@@ -64,12 +60,12 @@ lm_part1 <- data.table(melt(data = lm_part1,
                             value.name = "rtquartile"))
 
 
-result_filtered[, q25 := quantile(Predicted_RT, probs = 0.25), by = list(lab, rep)]
-result_filtered[, q50 := quantile(Predicted_RT, probs = 0.5), by = list(lab, rep)]
-result_filtered[, q75 := quantile(Predicted_RT, probs = 0.75), by = list(lab, rep)]
+globalResults[, q25 := quantile(ELUDE_RT_NOLTS, probs = 0.25), by = list(lab, rep)]
+globalResults[, q50 := quantile(ELUDE_RT_NOLTS, probs = 0.5), by = list(lab, rep)]
+globalResults[, q75 := quantile(ELUDE_RT_NOLTS, probs = 0.75), by = list(lab, rep)]
 
-setkey(result_filtered, lab, rep)
-lm_part2 <- result_filtered[, list(lab, rep, q25, q50, q75)]
+setkey(globalResults, lab, rep)
+lm_part2 <- globalResults[, list(lab, rep, q25, q50, q75)]
 setkey(lm_part2, lab, rep)
 lm_part2 <- unique(lm_part2)
 
@@ -87,19 +83,19 @@ setkey(lm_melted, lab, rep)
 
 list_mapping <- unique(lm_melted[, list(lab, rep)])
 setkey(list_mapping, lab, rep)
-list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
+
 for(i in c("lab1","lab2","lab3")){
   for(j in c("rep1","rep2","rep3")){
-    linear_model <- lm(predquartile~rtquartile, data=lm_melted[list(i,j)])
+    linear_model <- lm(rtquartile~predquartile, data=lm_melted[list(i,j)])
     list_mapping[list(i,j), intercept := linear_model[[1]][[1]]]
     list_mapping[list(i,j), slope := linear_model[[1]][[2]]]    
   }
 }
 
-setkey(result_filtered, lab, rep)
+setkey(globalResults, lab, rep)
 for(i in c("lab1","lab2","lab3")){
   for(j in c("rep1","rep2","rep3")){
-    result_filtered[list(i,j), rt_mapped := list_mapping[list(i,j)][, intercept] + list_mapping[list(i,j)][, slope] * rtsec]
+    globalResults[list(i,j), rt_mapped := list_mapping[list(i,"rep2")][, intercept] + list_mapping[list(i,"rep2")][, slope] * ELUDE_RT_NOLTS]
   }
 }
 
@@ -109,28 +105,74 @@ for(i in c("lab1","lab2","lab3")){
 ## result_filtered["lab2", rt_mapped := (-1.2 + rtsec * 0.0004)]
 ## result_filtered["lab3", rt_mapped := (-1.7 + rtsec * 0.00045)]
 
+globalResults[, diff := Elude_RT_LTS50 - rtsec]
+setkey(globalResults, lab, rep, rtsec)
+for(i in c("lab1","lab2","lab3")){
+  for(j in c("rep1","rep2","rep3")){
+    # Who said Lisp was the parenthesis language ?
+    globalResults[list(i,j), centile := ceiling((1:NROW(globalResults[list(i,j)]))*100/NROW(globalResults[list(i,j)]))]
+  }
+}
+setkey(globalResults, lab, rep, centile)
+globalResults[, q975 := quantile(diff, probs = 0.975), by = list(lab,rep,centile)]
+globalResults[, q025 := quantile(diff, probs = 0.025), by = list(lab,rep,centile)]
+globalResults[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile)]
+globalResults[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
+globalResults[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
 
-result_filtered[, diff := Predicted_RT - rt_mapped]
 
-result_filtered[, centile := ceiling(rt_mapped * 50)]
-result_filtered[, meanError := mean(diff), by = list(lab,rep,centile)]
-result_filtered[, q975 := quantile(diff, probs = 0.975), by = list(lab,rep,centile)]
-result_filtered[, q025 := quantile(diff, probs = 0.025), by = list(lab,rep,centile)]
-result_filtered[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile)]
-result_filtered[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
-result_filtered[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
-
-ggplot(result_filtered, aes(centile, q975-q025)) + geom_point() + xlim(-75,75)+ ylim(0,1) + facet_grid(lab ~ rep)
-
-graphDS <- data.table(melt(data = result_filtered, 
-                           id.vars = c("lab", "rep", "Peptide","index_rt2", "centile"), 
+graphDS <- data.table(melt(data = globalResults, 
+                           id.vars = c("lab", "rep", "elude_sequence","index_rt2", "centile","rtsec"), 
                            measure.vars = c("q025","q250","q500","q750","q975"),
                            variable.name = "quantile",
                            value.name = "error"))
 
+png(filename = paste0(projectPath,plotPath,"/4_LTS_Way_rtsec.png"),
+    width = 800, height = 800, units = "px")
+ggplot(graphDS, aes(rtsec, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(0,7500)+ ylim(-1250,800) + facet_grid(lab ~ rep)
+dev.off()
+
 setkey(graphDS, lab, rep, quantile, centile)
 graphDS <- unique(graphDS)
 
-ggplot(graphDS, aes(centile, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(-75,75)+ ylim(-0.6,0.3) + facet_grid(lab ~ rep)
+png(filename = paste0(projectPath,plotPath,"/4_LTS_Way_centile.png"),
+    width = 800, height = 800, units = "px")
+ggplot(graphDS, aes(centile, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(0,100)+ ylim(-1250,800) + facet_grid(lab ~ rep)
+dev.off()
+
+
+globalResults[, diff := rt_mapped - rtsec]
+setkey(globalResults, lab, rep, rtsec)
+for(i in c("lab1","lab2","lab3")){
+  for(j in c("rep1","rep2","rep3")){
+    # Who said Lisp was the parenthesis language ?
+    globalResults[list(i,j), centile := ceiling((1:NROW(globalResults[list(i,j)]))*100/NROW(globalResults[list(i,j)]))]
+  }
+}
+setkey(globalResults, lab, rep, centile)
+globalResults[, q975 := quantile(diff, probs = 0.975), by = list(lab,rep,centile)]
+globalResults[, q025 := quantile(diff, probs = 0.025), by = list(lab,rep,centile)]
+globalResults[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile)]
+globalResults[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
+globalResults[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
+
+graphDS_2 <- data.table(melt(data = globalResults, 
+                             id.vars = c("lab", "rep", "elude_sequence","index_rt2", "centile","rtsec"), 
+                             measure.vars = c("q025","q250","q500","q750","q975"),
+                             variable.name = "quantile",
+                             value.name = "error"))
+
+png(filename = paste0(projectPath,plotPath,"/5_New_Way_rtsec.png"),
+    width = 800, height = 800, units = "px")
+ggplot(graphDS_2, aes(rtsec, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(0,7500)+ ylim(-1250,800) + facet_grid(lab ~ rep)
+dev.off()
+
+setkey(graphDS_2, lab, rep, quantile, centile)
+graphDS_2 <- unique(graphDS_2)
+
+png(filename = paste0(projectPath,plotPath,"/5_New_Way_centile.png"),
+    width = 800, height = 800, units = "px")
+ggplot(graphDS_2, aes(centile, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(0,100)+ ylim(-1250,800) + facet_grid(lab ~ rep)
+dev.off()
 
 ggplot(result_filtered, aes(centile, q500)) + geom_point(alpha=(1/2), aes(colour=rep)) + xlim(-150,150) + ylim(-1, 0.5)+ facet_grid(lab ~ rep) 

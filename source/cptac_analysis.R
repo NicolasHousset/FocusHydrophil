@@ -1,6 +1,9 @@
-dataPath <- "//uv2522.ugent.be/compomics/Nicolas/CPTAC/"
+dataPath <- "//uv2522.ugent.be/compomics/Nicolas/CPTAC"
 
-load(file= paste0(dataPath, "CPTAC_processed.RData"))
+projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
+dataPath <- "/mnt/compomics/Nicolas/CPTAC"
+  
+load(file= paste0(dataPath, "/CPTAC_processed.RData"))
 
 result <- result[!is.na(rtsec)]
 
@@ -157,35 +160,13 @@ result[, rtsec.f := cut(rtsec, 100)]
 result[, q50_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, sample, rtsec.f)]
 result[, q_value_percolator := as.double(as.character(q_value_percolator))]
 
-setkey(result, exp)
-# Histogram of the intensity
-graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec, log(q50_Intensity))) + geom_point() + xlim(0,10000) +  ylim(6.5, 13) + facet_grid(sample ~ rep)
-graph 
-graph %+% result[c("lab1rep1","lab1rep2","lab1rep3")]
-graph %+% result[c("lab2rep1","lab2rep2","lab2rep3")]
-graph %+% result[c("lab3rep1","lab3rep2","lab3rep3")]
-
-
-
-graph <- ggplot(result[c("lab1rep1","lab1rep2","lab1rep3")], aes(rtsec)) + geom_histogram(aes(y = ..count..), binwidth = 60) + xlim(0,10000) + ylim(0,150) + facet_grid(sample ~ rep)
-graph
-
-result[list_experiments[1]]
-setkey(result, lab)
-ggplot(result["lab1"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result["lab2"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-ggplot(result["lab3"], aes(rtsec)) + geom_histogram(aes(y = ..density..), binwidth = 60) + xlim(0,10000)
-
-
-setkey(result, sample)
-
 
 result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
 result_filtered[, ups := grepl("ups",protein)]
 
 
 
-convenient_vector <- 1:4000
+convenient_vector <- 1:400
 setkey(result_filtered, fileOrigin, modseq, rtsec)
 # Add an index : 1 for the first time a peptide is encountered in a LC-run, 2 the second time, etc...
 # convenient_vector is automatically shrinked to the appropriate size : that is very convenient :)
@@ -244,6 +225,7 @@ pepUnique[, mod3 := as.character(lapply(listmod, "[[", 3))]
 pepUnique[, mod4 := as.character(lapply(listmod, "[[", 4))]
 pepUnique[, modN := as.character(lapply(listmodN, "[[", 1))]
 pepUnique[, modC := as.character(lapply(listmodC, "[[", 1))]
+pepUnique[, listMod := NULL]
 
 setkey(pepUnique, modseq)
 setkey(result_filtered, modseq)
@@ -259,29 +241,15 @@ result_filtered[, elude_sequence := gsub(">","]",elude_sequence)]
 result_filtered[, elude_sequence := gsub("\\.",",",elude_sequence)]
 
 
-# Calling ELUDE to predict a normalized retention time
-setkey(result_filtered, lab)
-onelab <- result_filtered["lab1"]
-
-setkey(onelab, elude_sequence, fileOrigin)
-pepUnique <- unique(onelab)[, list(elude_sequence, rtsec)]
-setkey(pepUnique,elude_sequence)
-pepUnique[, q50 := quantile(rtsec, probs = 0.5), by = elude_sequence]
-pepCalibration <- unique(pepUnique)[, list(elude_sequence, q50)]
-
-projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
-write.table(pepUnique[, list(elude_sequence, rtsec)], file=paste0(projectPath, "/data/ELUDE/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
-write.table(pepCalibration, file=paste0(projectPath, "/data/ELUDE/CPTAC_Calibration.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
-
 
 verbFlag <- "-v"
 verbLevel <- "5"
 
 trainFlag <- "-t"
-calibrationData <- "/data/ELUDE/CPTAC_Calibration.txt"
+calibrationData <- "/data/Elude/CPTAC_Calibration.txt"
 calibrationData <- shQuote(paste0(projectPath, calibrationData))
 testFlag <- "-e"
-testData <- "/data/ELUDE/CPTAC_Peptides.txt"
+testData <- "/data/Elude/CPTAC_Peptides.txt"
 testData <- shQuote(paste0(projectPath, testData))
 
 testRTFlag <- "-g"
@@ -289,40 +257,66 @@ ltsAdjustmentFlag <- "-c"
 ltsAdjustmentCoverage <- "0.5"
 
 loadModelFlag <- "-l"
-loadModel <- "/data/ELUDE/library/modelHydrophil.model"
+loadModel <- "/data/Elude/library/modelHydrophil.model"
 loadModel <- shQuote(paste0(projectPath, loadModel))
 
 savePredictFlag <- "-o"
-savePredict <- "/data/ELUDE/predictionsCPTAC.out"
+savePredict <- "/data/Elude/predictionsCPTAC.out"
 savePredict <- shQuote(paste0(projectPath, savePredict))
 
 ignoreNewTestPTMFlag <- "-p"
 
+globalResults <- data.table(NULL)
+# Calling ELUDE to predict a normalized retention time
+setkey(result_filtered, lab)
 
-eludeCall <- "elude"
-system2(eludeCall, args = c(verbFlag, verbLevel, trainFlag, calibrationData, testFlag, testData, testRTFlag,
-                            loadModelFlag, loadModel,
-                            savePredictFlag, savePredict, ignoreNewTestPTMFlag),
-        stdout=TRUE, stderr = TRUE)
+for(i in c("lab1","lab2","lab3")){
+  onelab <- result_filtered[i]
+  setkey(onelab, elude_sequence)
+  pepUnique <- unique(onelab)[, list(elude_sequence)]
+  setkey(onelab,rep)
+  pepCalibration <- onelab["rep2"][, list(elude_sequence, rtsec)]
+  pepCalibration[, q50 := quantile(rtsec, probs = 0.5), by = elude_sequence]
+  setkey(pepCalibration, elude_sequence)
+  pepCalibration <- unique(pepCalibration)[, list(elude_sequence, q50)]
+  
+  write.table(pepUnique[, list(elude_sequence)], file=paste0(projectPath, "/data/Elude/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+  write.table(pepCalibration, file=paste0(projectPath, "/data/Elude/CPTAC_Calibration.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+  
+  eludeCall <- "/mnt/compomics/Nicolas/Bioutilities/elude_precise64/elude"
+  
+  system2(eludeCall, args = c(verbFlag, verbLevel, trainFlag, calibrationData, testFlag, testData,
+                              ltsAdjustmentFlag, ltsAdjustmentCoverage,
+                              loadModelFlag, loadModel,
+                              savePredictFlag, savePredict, ignoreNewTestPTMFlag),
+          stdout=TRUE, stderr = TRUE)
+  
+  
+  results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
+  results[, Elude_RT_LTS50 := Predicted_RT]
+  results[, Predicted_RT := NULL]
+  
+  setkey(results, Peptide)
+  setkey(onelab, elude_sequence)
+  
+  onelab <- onelab[results]
+  
+  # Another call to ELUDE, this time without the LTS adjustment
+  system2(eludeCall, args = c(verbFlag, verbLevel, testFlag, testData,
+                              loadModelFlag, loadModel,
+                              savePredictFlag, savePredict, ignoreNewTestPTMFlag),
+          stdout=TRUE, stderr = TRUE)
+  results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
+  results[, ELUDE_RT_NOLTS := Predicted_RT]
+  results[, Predicted_RT := NULL]
+  setkey(results, Peptide)
+  setkey(onelab, elude_sequence)
+  
+  onelab <- onelab[results]
+  globalResults <- rbind(globalResults, onelab)
+}
 
-system2(eludeCall, args = c(verbFlag, verbLevel, testFlag, testData, testRTFlag,
-                             ltsAdjustmentFlag, ltsAdjustmentCoverage, 
-                             loadModelFlag, loadModel,
-                             savePredictFlag, savePredict, ignoreNewTestPTMFlag),
-        stdout=TRUE, stderr = TRUE)
 
-
-
-results <- data.table(read.table(file=paste0(projectPath, "/data/ELUDE/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
-setkey(results, Peptide, Observed_RT)
-setkey(onelab, elude_sequence, rtsec)
-
-# ggplot(results, aes(Predicted_RT)) + geom_histogram(aes(y = ..density..), binwidth = 0.05)
-
-test <- results[onelab]
-
-result_filtered <- results[result_filtered]
-
-save(result_filtered, file =  paste0(projectPath,"/data/CPTAC_predicted.RData"), compression_level=1)
+save(globalResults, file =  paste0(projectPath,"/data/CPTAC_predicted.RData"), compression_level=1)
 
 
