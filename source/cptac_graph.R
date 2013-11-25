@@ -22,7 +22,7 @@ graph + theme(text = element_text(size = 30), panel.background = element_blank()
 dev.off()
 
 
-graph <- ggplot(globalResults["lab1rep1"], aes(ELUDE_RT_NOLTS, rtsec)) + geom_point(alpha = 1/4) + xlim(-1.5,1.5) + ylim(0,6000)
+graph <- ggplot(globalResults["lab1rep1"], aes(ELUDE_RT_NOLTS, rtsec)) + geom_point(alpha = 1/4) + xlim(-1.5,1.5) + ylim(0,8000)
 png(filename = paste0(projectPath,plotPath,"/3_RawPredExp.png"),
     width = 800, height = 800, units = "px")
 graph + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
