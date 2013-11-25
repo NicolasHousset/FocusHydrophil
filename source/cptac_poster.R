@@ -81,7 +81,7 @@ setkey(bbc_data, lab, rep)
 
 for(i in c("lab1","lab2","lab3")){
   for(j in c("rep1","rep2","rep3")){
-    list_protein <- data.frame(summary(bbc_data[list(i,j)][, factor(str_protein)], maxsum=2000))
+    list_protein <- data.frame(summary(bbc_data[list(i,j)][, factor(str_protein)], maxsum=10000))
     names(list_protein)[c(1)] <- c("count_unique_pep")
     list_protein <- data.table(list_protein, keep.rownames = TRUE)
     list_protein <- list_protein[count_unique_pep > 1]
@@ -102,9 +102,21 @@ bbc_data <- bbc_data[list_protein_global]
 
 setkey(bbc_data, lab, rep, protein)
 bbc_data2 <- unique(bbc_data)
-setkey(bbc_data2, lab, protein)
 # Once again, converting back protein from factor to character
 bbc_data2[, str_protein := as.character(protein)]
+list_protein_2_global <- data.table(NULL)
+setkey(bbc_data2, lab)
+for(i in c("lab1","lab2","lab3")){
+  list_protein_2 <- data.frame(summary(bbc_data2[i][,factor(str_protein)], maxsum = 10000))
+  names(list_protein_2)[c(1)] <- c("count_rep_id")
+  list_protein_2 <- data.table(list_protein_2, keep.rownames = TRUE)
+  list_protein_2 <- list_protein_2[count_rep_id > 1]
+  list_protein_2[, lab := i]
+  list_protein_2_global <- rbind(list_protein_2_global, list_protein_2)
+}
+setkey(bbc_data, lab, protein)
+setkey(list_protein_2_global, lab, rn)
+test <- bbc_data[list_protein_2_global]
 
 
 # Fourth step
