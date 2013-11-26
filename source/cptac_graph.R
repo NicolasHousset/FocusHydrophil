@@ -156,12 +156,15 @@ globalResults[, q500 := quantile(diff, probs = 0.500), by = list(lab,rep,centile
 globalResults[, q250 := quantile(diff, probs = 0.250), by = list(lab,rep,centile)]
 globalResults[, q750 := quantile(diff, probs = 0.750), by = list(lab,rep,centile)]
 
+ggplot(globalResults, aes(centile, q975)) + geom_point() + xlim(0,100) + ylim(300,1000) + facet_grid(lab ~ rep)
+
 graphDS_2 <- data.table(melt(data = globalResults, 
                              id.vars = c("lab", "rep", "elude_sequence","index_rt2", "centile","rtsec"), 
                              measure.vars = c("q025","q250","q500","q750","q975"),
                              variable.name = "quantile",
                              value.name = "error"))
 
+globalResults[,quantile(q500, probs = 0.500), by = list(lab,rep)]
 png(filename = paste0(projectPath,plotPath,"/5_New_Way_rtsec.png"),
     width = 800, height = 800, units = "px")
 ggplot(graphDS_2, aes(rtsec, error, colour = quantile)) + geom_point(alpha=(1)) + xlim(0,7500)+ ylim(-1250,800) + facet_grid(lab ~ rep)

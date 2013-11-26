@@ -68,37 +68,45 @@ for(i in c("lab1","lab2","lab3")){
 
 
 # Second step
-# Count the number of (non modified based sequence) peptides per protein (per lab per rep)
+# Count the number of (non modified based sequence) peptides per protein (per lab per rep per sample)
 # Filter out proteins non identified by at least 2 unique peptides
 
 bbc_data <- globalResults[index_rt2==1][ups==FALSE]
-setkey(bbc_data, lab, rep, peptide)
+setkey(bbc_data, lab, rep, sample, protein, peptide, rtsec) # In the case of two or more identical peptides carrying different modifications, we take into account the earliest rt
+setkey(bbc_data, lab, rep, sample, protein,peptide)
 bbc_data <- unique(bbc_data)
 # protein has been converted to factor, necessary to first convert it back to character
 bbc_data[, str_protein := as.character(protein)]
 list_protein_global <- data.table(NULL)
-setkey(bbc_data, lab, rep)
+setkey(bbc_data, lab, rep, sample)
 
 for(i in c("lab1","lab2","lab3")){
   for(j in c("rep1","rep2","rep3")){
-    list_protein <- data.frame(summary(bbc_data[list(i,j)][, factor(str_protein)], maxsum=10000))
-    names(list_protein)[c(1)] <- c("count_unique_pep")
-    list_protein <- data.table(list_protein, keep.rownames = TRUE)
-    list_protein <- list_protein[count_unique_pep > 1]
-    list_protein[, lab := i]
-    list_protein[, rep := j]
-    list_protein_global <- rbind(list_protein_global, list_protein)
+    for(k in c("1_QC2","2_A","3_B","4_C","5_D","6_E")){
+      list_protein <- data.frame(summary(bbc_data[list(i,j,k)][, factor(str_protein)], maxsum=10000))
+      names(list_protein)[c(1)] <- c("count_unique_pep")
+      list_protein <- data.table(list_protein, keep.rownames = TRUE)
+      if(!(list_protein[1, rn]=="NA's")){ # Sometimes the sample can be missing
+        list_protein[, lab := i]
+        list_protein[, rep := j]
+        list_protein[, sample := k]
+        list_protein <- list_protein[count_unique_pep > 1] # proteins identified by only one unique pep are excluded
+        list_protein_global <- rbind(list_protein_global, list_protein)
+      }
+    }
   }
 }
 
-
-setkey(bbc_data, lab, rep, protein)
-setkey(list_protein_global, lab, rep, rn)
+setkey(bbc_data, lab, rep, sample, protein)
+setkey(list_protein_global, lab, rep, sample, rn)
 
 bbc_data <- bbc_data[list_protein_global]
+
+# DEPRECATED
 # Third step
 # Count the number of protein identifications (replicate based) per lab
 # Filter out proteins non identified in 2 replicates out of 3
+# This step is deprecated since I do the analysis sample by sample
 
 setkey(bbc_data, lab, rep, protein)
 bbc_data2 <- unique(bbc_data)
@@ -110,16 +118,43 @@ for(i in c("lab1","lab2","lab3")){
   list_protein_2 <- data.frame(summary(bbc_data2[i][,factor(str_protein)], maxsum = 10000))
   names(list_protein_2)[c(1)] <- c("count_rep_id")
   list_protein_2 <- data.table(list_protein_2, keep.rownames = TRUE)
-  list_protein_2 <- list_protein_2[count_rep_id > 1]
+  list_protein_2 <- list_protein_2[count_rep_id > 1] # proteins identified in only one replicate are excluded
   list_protein_2[, lab := i]
   list_protein_2_global <- rbind(list_protein_2_global, list_protein_2)
 }
 setkey(bbc_data, lab, protein)
 setkey(list_protein_2_global, lab, rn)
-test <- bbc_data[list_protein_2_global]
+bbc_data <- bbc_data[list_protein_2_global]
 
 
 # Fourth step
 # For each lab/rep combination, count the number of proteins identified at different gradient
 # To determine the min and the max, go for mapping (-1.2) and mapping (1.2) ?
 # In any case divide the interval in 100 bins of x seconds
+
+# This step is hard
+# I think I want to compute the rt value of the 2nd most hydrophilic peptide of the protein
+# Also I want to compute the borders of the "effective LC range" for each lab (based on rep2), and deduce my gradient levels.
+
+
+
+
+
+convenient_vector <- 1:400
+setkey(bbc_data, lab, rep, sample, protein, peptide, rtsec)
+setkey(bbc_data, lab, rep, sample, protein, peptide)
+
+bbc_data[, str_key:=paste0(lab,rep,sample,protein)]
+setkey(bbc_data, str_key, rtsec)
+list_key <- data.table(data.frame(summary(bbc_data[, factor(str_key)], maxsum = 40000)), keep.rownames = TRUE)
+# This takes a while, it can probably be further optimised
+# convenient_vector was overkill so it's already a slight improvement
+for(i in 1:NROW(list_key)){
+  print(i)
+  bbc_data[labels(list_key[i]), index_protein := 1:list_key[[i]]]
+}
+
+test <- bbc_data[index_protein==2]
+View(bbc_data)
+
+# Nearly done, but no more energy
