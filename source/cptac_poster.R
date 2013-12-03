@@ -148,6 +148,8 @@ setkey(bbc_data, str_key, rtsec)
 list_key <- summary(bbc_data[, factor(str_key)], maxsum = 40000)
 # This takes a while, it can probably be further optimised
 # convenient_vector was overkill so it's already a slight improvement
+# This piece of code computes for every time a protein is identified the order in which comes each of its peptides
+# Then, by zooming on the 2nd peptides, we can immediately estimate the amount of proteins identified for every level of gradient
 for(i in 1:NROW(list_key)){
   print(i)
   bbc_data[labels(list_key[i]), index_protein := 1:list_key[[i]]]
@@ -163,28 +165,49 @@ for(i in c("lab1","lab2","lab3")){
 }
 bbc_data[, grp_rt := ceiling(rtsec/500)]
 setkey(bbc_data, lab, rep, sample, grp_rt)
-bbc_data[, error_95_LTS_glob := quantile(abs(Elude_RT_LTS50 - rtsec), probs = 0.95), by = list(lab, rep, sample)]
-bbc_data[, error_95_LTS_grp := quantile(abs(Elude_RT_LTS50 - rtsec), probs = 0.95), by = list(lab, rep, sample, grp_rt)]
+bbc_data[, error_95_LTS_glob := quantile(abs(Elude_RT_LTS95 - rtsec), probs = 0.95), by = list(lab, rep, sample)]
+bbc_data[, error_95_LTS_grp := quantile(abs(Elude_RT_LTS95 - rtsec), probs = 0.95), by = list(lab, rep, sample, grp_rt)]
 bbc_data[, error_95_QUARTS_glob := quantile(abs(rt_mapped - rtsec), probs = 0.95), by = list(lab, rep, sample)]
 bbc_data[, error_95_QUARTS_grp := quantile(abs(rt_mapped - rtsec), probs = 0.95), by = list(lab, rep, sample, grp_rt)]
 
 
 bbc_data[, error_median := quantile(rt_mapped - rtsec, probs = 0.50), by = list(lab, rep, sample, grp_rt)]
-bbc_data[, error_median_LTS := quantile(Elude_RT_LTS50 - rtsec, probs = 0.50), by = list(lab, rep, sample, grp_rt)]
+bbc_data[, error_median_LTS := quantile(Elude_RT_LTS95 - rtsec, probs = 0.50), by = list(lab, rep, sample, grp_rt)]
 
 error_graph <- unique(bbc_data)[, list(lab, rep, sample, grp_rt, error_95_LTS_glob, error_95_LTS_grp, error_95_QUARTS_glob, error_95_QUARTS_grp, error_median, error_median_LTS)]
 # Removing the calibrating data
 error_graph <- error_graph[sample != "1_QC2"]
 # That might be my first graph
 setkey(error_graph, lab, rep, sample, grp_rt)
+
+plotPath <- "/plot/MappingPredGrad_2"
+png(filename = paste0(projectPath,plotPath,"/1_ErrorByRT_QUARTS.png"),
+    width = 800, height = 800, units = "px")
 ggplot(error_graph, aes(grp_rt, error_95_QUARTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
+dev.off()
+
+png(filename = paste0(projectPath,plotPath,"/2_ErrorByRT_LTS.png"),
+    width = 800, height = 800, units = "px")
 ggplot(error_graph, aes(grp_rt, error_95_LTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
+dev.off()
 
 setkey(error_graph, lab, rep, sample)
 ggplot(unique(error_graph), aes(lab, error_95_QUARTS_glob)) + geom_boxplot(aes(group=lab), outlier.size = 0) + geom_point(aes(color = lab)) + ylim(0,900) 
 ggplot(unique(error_graph), aes(lab, error_95_LTS_glob)) + geom_boxplot(aes(group=lab), outlier.size = 0) + geom_point(aes(color = lab)) + ylim(0,900)
 
-ggplot(error_graph, aes(grp_rt, error_median)) + geom_point() + xlim(1,10) + ylim(-200,200) + facet_grid(lab~ rep)
+a <- data.table(melt(data = unique(error_graph), 
+                id.vars = c("lab", "rep", "sample"), 
+                measure.vars = c("error_95_QUARTS_glob","error_95_LTS_glob"),
+                variable.name = "type",
+                value.name = "error"))
+View(a)
+
+# The conclusion of this graph is obvious: LTS performs better than QUARTS.
+png(filename = paste0(projectPath,plotPath,"/3_GlobError_QUARTS_VS_LTS.png"),
+    width = 800, height = 800, units = "px")
+ggplot(a, aes(x=type, y=error)) + geom_boxplot() + ylim(0,800) + facet_grid(. ~ lab) + theme(text = element_text(size = 14), panel.background = element_blank(), panel.grid = element_blank())
+dev.off()
+
 
 bbc_data_2<- bbc_data[index_protein==2]
 setkey(bbc_data_2, lab, rep, sample, rtsec)
@@ -201,6 +224,12 @@ png(filename = paste0(projectPath,plotPath,"/A_protsExp.png"),
     width = 800, height = 800, units = "px")
 ggplot(bbc_data_2[list("lab2","rep1","1_QC2")], aes(rtsec, nbProtIdentified)) + geom_point() + xlim(900,8100) + facet_grid(rep ~ sample) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
 dev.off()
+
+png(filename = paste0(projectPath,plotPath,"/4_ProteomeCoverageByGradient.png"),
+    width = 800, height = 800, units = "px")
+ggplot(bbc_data_2[list("lab2")], aes(rtsec, nbProtIdentified)) + geom_point() + xlim(900,6100) + facet_grid(rep ~ sample) + theme(text = element_text(size = 20), panel.background = element_blank(), panel.grid = element_blank())
+dev.off()
+
 View(bbc_data_2)
 # Nearly done, but no more energy
 
