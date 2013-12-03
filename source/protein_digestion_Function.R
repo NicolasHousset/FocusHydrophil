@@ -10,13 +10,14 @@ digestionFile <- "/Peptides/Digestion/Yeast_01TS.txt"
 eludeInputFile <- "/Peptides/RT_Prediction/pep_01TS.txt"
 predictionFile <- "/Peptides/RT_Prediction/pep_01TS_pred.txt"
 
-test <- myFunction(projectPath = "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil",
+test <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil",
                    proteinsPath = "/data/Protein/Yeast",
-                   modelFile = "/data/Elude/modelHydrophil.model",
-                   digestionFile = "/Peptides/Digestion/YeastGold_01TS.txt",
-                   eludeInputFile = "/Peptides/RT_Prediction/pep_01TS.txt",
-                   predictionFile = "/Peptides/RT_Prediction/pep_01TS_pred.txt",
-                   imageFile = "/R_Image/test.RData")
+                   modelFile = "/data/Elude/library/modelHydrophil.model",
+                   digestionFile = "/Peptides/Digestion/YeastGold_09TS.txt",
+                   eludeInputFile = "/Peptides/RT_Prediction/pep_09TS.txt",
+                   predictionFile = "/Peptides/RT_Prediction/pep_09TS_pred.txt",
+                   imageFile = "/R_Image/test09.RData",
+                   eludePath = "/mnt/compomics/Nicolas/Bioutilities/elude_precise64/elude")
 
 test2 <- myFunction(projectPath = "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil",
                    proteinsPath = "/data/Protein/MouseGold",
@@ -42,7 +43,7 @@ eludeInputFile <- "/Peptides/RT_Prediction/pep_01TS.txt"
 predictionFile <- "/Peptides/RT_Prediction/pep_01TS_pred.txt"
 imageFile <- "/R_Image/test.RData"
 
-myFunction <- function(projectPath, proteinsPath, modelFile, digestionFile, eludeInputFile, predictionFile,imageFile,...){
+myFunction <- function(projectPath, proteinsPath, modelFile, digestionFile, eludeInputFile, predictionFile,imageFile,eludePath...){
   sequences <- data.table(read.table(file = paste0(projectPath, proteinsPath, digestionFile),
                                      sep = "", col.names=c("Type","Sequence","Probability"),
                                      fill = TRUE
@@ -117,7 +118,7 @@ myFunction <- function(projectPath, proteinsPath, modelFile, digestionFile, elud
   verbLevel <- " 5"
   loadModelFlag <- " -l "
   
-  strCommand <- "elude"
+  strCommand <- eludePath
   
   # Probably does not work on Windows
   system2(strCommand, args = c(verbFlag, verbLevel, testFlag, testData,

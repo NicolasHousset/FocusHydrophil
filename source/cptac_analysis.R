@@ -161,7 +161,7 @@ result[, q50_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, sa
 result[, q_value_percolator := as.double(as.character(q_value_percolator))]
 
 
-result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
+result_filtered <- result[q_value_percolator <= 0.1][multi_pro == FALSE]
 result_filtered[, ups := grepl("ups",protein)]
 
 
@@ -231,7 +231,6 @@ setkey(pepUnique, modseq)
 setkey(result_filtered, modseq)
 result_filtered <- pepUnique[result_filtered]
 
-# For some reason Percolator rejects all the modified Q
 result_filtered <- result_filtered[(mod1=="M<15.994915>" | mod1=="" | mod1=="C<57.021464>" | mod1=="Q<-17>") &
                                      modN=="0-"]
 
@@ -254,7 +253,7 @@ testData <- shQuote(paste0(projectPath, testData))
 
 testRTFlag <- "-g"
 ltsAdjustmentFlag <- "-c"
-ltsAdjustmentCoverage <- "0.5"
+ltsAdjustmentCoverage <- "0.95"
 
 loadModelFlag <- "-l"
 loadModel <- "/data/Elude/library/modelHydrophil.model"
@@ -268,55 +267,53 @@ ignoreNewTestPTMFlag <- "-p"
 
 globalResults <- data.table(NULL)
 # Calling ELUDE to predict a normalized retention time
-setkey(result_filtered, lab)
-
+setkey(result_filtered, lab, rep)
 for(i in c("lab1","lab2","lab3")){
-  onelab <- result_filtered[i]
-  setkey(onelab, elude_sequence)
-  pepUnique <- unique(onelab)[, list(elude_sequence)]
-  setkey(onelab,rep)
-  pepCalibration <- onelab["rep2"][, list(elude_sequence, rtsec)]
-  pepCalibration[, q50 := quantile(rtsec, probs = 0.5), by = elude_sequence]
-  setkey(pepCalibration, elude_sequence)
-  pepCalibration <- unique(pepCalibration)[, list(elude_sequence, q50)]
-  
-  write.table(pepUnique[, list(elude_sequence)], file=paste0(projectPath, "/data/Elude/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
-  write.table(pepCalibration, file=paste0(projectPath, "/data/Elude/CPTAC_Calibration.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
-  
-  eludeCall <- "/mnt/compomics/Nicolas/Bioutilities/elude_precise64/elude"
-  
-  system2(eludeCall, args = c(verbFlag, verbLevel, trainFlag, calibrationData, testFlag, testData,
-                              ltsAdjustmentFlag, ltsAdjustmentCoverage,
-                              loadModelFlag, loadModel,
-                              savePredictFlag, savePredict, ignoreNewTestPTMFlag),
-          stdout=TRUE, stderr = TRUE)
-  
-  
-  results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
-  results[, Elude_RT_LTS50 := Predicted_RT]
-  results[, Predicted_RT := NULL]
-  
-  setkey(results, Peptide)
-  setkey(onelab, elude_sequence)
-  
-  onelab <- onelab[results]
-  
-  # Another call to ELUDE, this time without the LTS adjustment
-  system2(eludeCall, args = c(verbFlag, verbLevel, testFlag, testData,
-                              loadModelFlag, loadModel,
-                              savePredictFlag, savePredict, ignoreNewTestPTMFlag),
-          stdout=TRUE, stderr = TRUE)
-  results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
-  results[, ELUDE_RT_NOLTS := Predicted_RT]
-  results[, Predicted_RT := NULL]
-  setkey(results, Peptide)
-  setkey(onelab, elude_sequence)
-  
-  onelab <- onelab[results]
-  globalResults <- rbind(globalResults, onelab)
+  for(j in c("rep1","rep2","rep3")){
+    onelab <- result_filtered[list(i,j)]
+    setkey(onelab, elude_sequence)
+    pepUnique <- unique(onelab)[, list(elude_sequence)]
+    setkey(onelab,sample)
+    pepCalibration <- onelab["1_QC2"][, list(elude_sequence, rtsec)]
+    pepCalibration[, q50 := quantile(rtsec, probs = 0.5), by = elude_sequence]
+    setkey(pepCalibration, elude_sequence)
+    pepCalibration <- unique(pepCalibration)[, list(elude_sequence, q50)]
+    
+    write.table(pepUnique[, list(elude_sequence)], file=paste0(projectPath, "/data/Elude/CPTAC_Peptides.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+    write.table(pepCalibration, file=paste0(projectPath, "/data/Elude/CPTAC_Calibration.txt"), quote = FALSE, sep="\t", row.names = FALSE, col.names = FALSE)
+    
+    eludeCall <- "/mnt/compomics/Nicolas/Bioutilities/elude_precise64/elude"
+    
+    system2(eludeCall, args = c(verbFlag, verbLevel, trainFlag, calibrationData, testFlag, testData,
+                                ltsAdjustmentFlag, ltsAdjustmentCoverage,
+                                loadModelFlag, loadModel,
+                                savePredictFlag, savePredict, ignoreNewTestPTMFlag))
+    
+    
+    results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
+    results[, Elude_RT_LTS95 := Predicted_RT]
+    results[, Predicted_RT := NULL]
+    
+    setkey(results, Peptide)
+    setkey(onelab, elude_sequence)
+    
+    onelab <- onelab[results]
+    
+    # Another call to ELUDE, this time without the LTS adjustment
+    system2(eludeCall, args = c(verbFlag, verbLevel, testFlag, testData,
+                                loadModelFlag, loadModel,
+                                savePredictFlag, savePredict, ignoreNewTestPTMFlag))
+    results <- data.table(read.table(file=paste0(projectPath, "/data/Elude/predictionsCPTAC.out"), header = TRUE, sep = "\t"))
+    results[, ELUDE_RT_NOLTS := Predicted_RT]
+    results[, Predicted_RT := NULL]
+    setkey(results, Peptide)
+    setkey(onelab, elude_sequence)
+    
+    onelab <- onelab[results]
+    globalResults <- rbind(globalResults, onelab)
+  }
 }
 
 
 save(globalResults, file =  paste0(projectPath,"/data/CPTAC_predicted.RData"), compression_level=1)
-
 
