@@ -1,3 +1,8 @@
+# Second part of the R code for the BBC poster
+# Mapping the data to their respective labs, replicates, sample
+# Detecting modifications and keeping only Mox, Cmm and Pyr
+# Predicting the retention time using two gradient mapping approach: LTS (included in ELUDE) and QUARTS (a personal attempt)
+
 dataPath <- "//uv2522.ugent.be/compomics/Nicolas/CPTAC"
 
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
@@ -161,9 +166,8 @@ result[, q50_Intensity := quantile(MS1_Intensity, probs=0.50), by = list(exp, sa
 result[, q_value_percolator := as.double(as.character(q_value_percolator))]
 
 
-result_filtered <- result[q_value_percolator <= 0.1][multi_pro == FALSE]
+result_filtered <- result[q_value_percolator <= 0.01][multi_pro == FALSE]
 result_filtered[, ups := grepl("ups",protein)]
-
 
 
 convenient_vector <- 1:400

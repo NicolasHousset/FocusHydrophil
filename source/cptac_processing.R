@@ -1,9 +1,17 @@
+# First part of the R code generating the graphs of the BBC 2013 poster
+# This part handles the processing of the different text files
+
+# The CPTAC data is made of 3 laboratories running in triplicate 7 samples
+# QC1 containing only UPS protein we discard it. QC2 contains only yeast so it's interesting to keep it
+# Sample A to E contain mostly yeast, with increasing concentrations of UPS48, a human protein
+
+library(data.table)
 
 inputPath <- "//uv2522.ugent.be/compomics/Andrea/CPTAC/"
 outputPath <- "//uv2522.ugent.be/compomics/Nicolas/CPTAC/"
 
-# Test Command
-# fileName <- inputList[[2]]
+inputPath <- "/mnt/compomics/Andrea/CPTAC/"
+outputPath <- "/mnt/compomics/Nicolas/CPTAC/"
 
 joinFiles <- function(fileName,...){
   inputFile1 <- paste0(fileName, ".mgf")

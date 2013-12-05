@@ -1,9 +1,11 @@
+library(reshape2)
+library(data.table)
 ## Code to generate the plots associated with the BBC poster
 
 projectPath <- "C:/Users/Nicolas Housset/Documents/R_Projects/FocusHydrophil"
 projectPath <- "/mnt/compomics/Nicolas/R_Projects/FocusHydrophil"
 
-plotPath <- "/plot/MappingPredGrad"
+plotPath <- "/plot/MappingPredGrad_2"
 load(file= paste0(projectPath, "/data/CPTAC_predicted.RData"))
 
 # First step
@@ -184,7 +186,7 @@ setkey(error_graph, lab, rep, sample, grp_rt)
 plotPath <- "/plot/MappingPredGrad_2"
 png(filename = paste0(projectPath,plotPath,"/1_ErrorByRT_QUARTS.png"),
     width = 1600, height = 900, units = "px")
-ggplot(error_graph, aes(grp_rt, error_95_QUARTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab), size = 3) + xlim(500,6100) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 36),
+ggplot(error_graph, aes(grp_rt, error_95_QUARTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab), size = 3) + xlim(500,6300) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 36),
                                                                                                                                                                                                                     panel.background = element_blank(),
                                                                                                                                                                                                                     panel.grid = element_blank(),
                                                                                                                                                                                                                     legend.position = "none",
@@ -196,7 +198,7 @@ dev.off()
 
 png(filename = paste0(projectPath,plotPath,"/2_ErrorByRT_LTS.png"),
     width = 800, height = 800, units = "px")
-ggplot(error_graph, aes(grp_rt, error_95_LTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank(),axis.title.y = element_text(angle=270, size = 45),
+ggplot(error_graph, aes(grp_rt, error_95_LTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(500,6300) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank(),axis.title.y = element_text(angle=270, size = 45),
                                                                                                                                                                                                                  axis.title.x = element_text(size = 45))+
   xlab("Retention time in seconds")+
   ylab("Number of proteins identified")
