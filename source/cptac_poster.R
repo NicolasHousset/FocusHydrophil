@@ -163,7 +163,7 @@ for(i in c("lab1","lab2","lab3")){
     }
   }
 }
-bbc_data[, grp_rt := ceiling(rtsec/500)]
+bbc_data[, grp_rt := ceiling((rtsec+100)/800)*800+500] # It will show the middle of the retention time interval
 setkey(bbc_data, lab, rep, sample, grp_rt)
 bbc_data[, error_95_LTS_glob := quantile(abs(Elude_RT_LTS95 - rtsec), probs = 0.95), by = list(lab, rep, sample)]
 bbc_data[, error_95_LTS_grp := quantile(abs(Elude_RT_LTS95 - rtsec), probs = 0.95), by = list(lab, rep, sample, grp_rt)]
@@ -180,15 +180,26 @@ error_graph <- error_graph[sample != "1_QC2"]
 # That might be my first graph
 setkey(error_graph, lab, rep, sample, grp_rt)
 
+# Ok, I want to remove the legend, and more explicit variable names
 plotPath <- "/plot/MappingPredGrad_2"
 png(filename = paste0(projectPath,plotPath,"/1_ErrorByRT_QUARTS.png"),
-    width = 800, height = 800, units = "px")
-ggplot(error_graph, aes(grp_rt, error_95_QUARTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
+    width = 1600, height = 900, units = "px")
+ggplot(error_graph, aes(grp_rt, error_95_QUARTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab), size = 3) + xlim(500,6100) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 36),
+                                                                                                                                                                                                                    panel.background = element_blank(),
+                                                                                                                                                                                                                    panel.grid = element_blank(),
+                                                                                                                                                                                                                    legend.position = "none",
+                                                                                                                                                                                                                    axis.title.y = element_text(angle=270, size = 45),
+                                                                                                                                                                                                                    axis.title.x = element_text(size = 45)) +                                                                                                                                                                                                                   
+  xlab("Retention time in seconds")+
+  ylab("Absolute prediction error (95%)")
 dev.off()
 
 png(filename = paste0(projectPath,plotPath,"/2_ErrorByRT_LTS.png"),
     width = 800, height = 800, units = "px")
-ggplot(error_graph, aes(grp_rt, error_95_LTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
+ggplot(error_graph, aes(grp_rt, error_95_LTS_grp)) + geom_boxplot(aes(group=as.character(grp_rt)), outlier.size = 0) + geom_point(aes(color = lab)) + xlim(1.5,10.5) + ylim(0,900) + facet_grid(. ~ lab) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank(),axis.title.y = element_text(angle=270, size = 45),
+                                                                                                                                                                                                                 axis.title.x = element_text(size = 45))+
+  xlab("Retention time in seconds")+
+  ylab("Number of proteins identified")
 dev.off()
 
 setkey(error_graph, lab, rep, sample)
@@ -225,9 +236,12 @@ png(filename = paste0(projectPath,plotPath,"/A_protsExp.png"),
 ggplot(bbc_data_2[list("lab2","rep1","1_QC2")], aes(rtsec, nbProtIdentified)) + geom_point() + xlim(900,8100) + facet_grid(rep ~ sample) + theme(text = element_text(size = 30), panel.background = element_blank(), panel.grid = element_blank())
 dev.off()
 
+# This is my second graph
 png(filename = paste0(projectPath,plotPath,"/4_ProteomeCoverageByGradient.png"),
-    width = 800, height = 800, units = "px")
-ggplot(bbc_data_2[list("lab2")], aes(rtsec, nbProtIdentified)) + geom_point() + xlim(900,6100) + facet_grid(rep ~ sample) + theme(text = element_text(size = 20), panel.background = element_blank(), panel.grid = element_blank())
+    width = 1600, height = 900, units = "px")
+ggplot(bbc_data_2[list("lab2")], aes(rtsec, nbProtIdentified)) + geom_point() + xlim(900,6100) + facet_grid(rep ~ sample) + theme(text = element_text(size = 36), panel.background = element_blank(), panel.grid = element_blank(),axis.title.y = element_text(angle=270, size = 45), axis.title.x = element_text(size = 45)) +
+  xlab("Retention time in seconds")+
+  ylab("Number of proteins identified")
 dev.off()
 
 View(bbc_data_2)
