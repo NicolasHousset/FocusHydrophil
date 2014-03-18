@@ -163,4 +163,4 @@ for(fileName in inputList){
 
 save(list = c("result"), file=paste0(outputPath, "CPTAC_processed.RData"),
      compress = "gzip", compression_level = 1)
-write.csv(result, file=paste0(outputPath, "CPTAC_processed.csv"))
+write.csv(result, file=paste0(outputPath, "CPTAC_processed_V2.csv"))
